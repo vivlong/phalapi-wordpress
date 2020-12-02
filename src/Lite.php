@@ -39,7 +39,7 @@ class Lite
     }
 
     /**
-     * Posts
+     * Posts.
      */
     public function listPosts($args = [])
     {
@@ -51,13 +51,23 @@ class Lite
         return $this->instance->get('posts/'.$id, $args);
     }
 
+    public function createPost($args = [])
+    {
+        return $this->instance->post('posts', $args);
+    }
+
+    public function updatePost($id, $args = [])
+    {
+        return $this->instance->post('posts/'.$id, $args);
+    }
+
     public function deletePost($id, $args = [])
     {
         return $this->instance->delete('posts/'.$id, $args);
     }
 
     /**
-     * Pages
+     * Pages.
      */
     public function listPages($args = [])
     {
@@ -70,7 +80,7 @@ class Lite
     }
 
     /**
-     * Categories
+     * Categories.
      */
     public function listCategories($args = [])
     {
@@ -82,8 +92,23 @@ class Lite
         return $this->instance->get('categories/'.$id, $args);
     }
 
+    public function createCategory($args = [])
+    {
+        return $this->instance->post('categories', $args);
+    }
+
+    public function updateCategory($id, $args = [])
+    {
+        return $this->instance->post('categories/'.$id, $args);
+    }
+
+    public function deleteCategory($id, $args = [])
+    {
+        return $this->instance->delete('categories/'.$id, $args);
+    }
+
     /**
-     * Tags
+     * Tags.
      */
     public function listTags($args = [])
     {
@@ -96,7 +121,20 @@ class Lite
     }
 
     /**
-     * Comments
+     * Taxonomies.
+     */
+    public function listTaxonomies($args = [])
+    {
+        return $this->instance->get('taxonomies', $args);
+    }
+
+    public function retrieveTaxonomy($taxonomy, $args = [])
+    {
+        return $this->instance->get('taxonomies/'.$taxonomy, $args);
+    }
+
+    /**
+     * Comments.
      */
     public function listComments($args = [])
     {
@@ -109,7 +147,7 @@ class Lite
     }
 
     /**
-     * Media
+     * Media.
      */
     public function listMedia($args = [])
     {
@@ -121,8 +159,23 @@ class Lite
         return $this->instance->get('media/'.$id, $args);
     }
 
+    public function createMedia($args = [])
+    {
+        return $this->instance->post('media', $args);
+    }
+
+    public function updateMedia($id, $args = [])
+    {
+        return $this->instance->post('media/'.$id, $args);
+    }
+
+    public function deleteMedia($id, $args = [])
+    {
+        return $this->instance->delete('media/'.$id, $args);
+    }
+
     /**
-     * Search Results
+     * Search Results.
      */
     public function listSearchResults($args = [])
     {
@@ -130,7 +183,7 @@ class Lite
     }
 
     /**
-     * Users
+     * Users.
      */
     public function listUsers($args = [])
     {
@@ -143,7 +196,7 @@ class Lite
     }
 
     /**
-     * Custom
+     * Custom.
      */
     public function getCustom($route, $args = [])
     {
