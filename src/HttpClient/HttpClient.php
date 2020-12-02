@@ -88,12 +88,21 @@ class HttpClient
         if (!\function_exists('curl_version')) {
             throw new HttpClientException('cURL is NOT installed on this server', -1, new Request(), new Response());
         }
-
         $this->options = new Options($options);
         $this->url = $this->buildApiUrl($url);
         $this->apiKey = $apiKey;
         $this->apiSecret = $apiSecret;
-        $this->accessToken = $this->request('token', 'POST', ['api_key' => $apiKey, 'api_secret' => $apiSecret]);
+        $di = \PhalApi\DI();
+        $di->jwtCache = new \PhalApi\Cache\FileCache(['path' => API_ROOT.'/runtime', 'prefix' => 'jwt']);
+        $jwt = $di->jwtCache->get('auth');
+        if (!empty($jwt)) {
+            $jwtAuth = json_decode($jwt);
+            $this->access_token = $jwtAuth->access_token;
+        } else {
+            $jwtAuth = $this->request('token', 'POST', ['api_key' => $apiKey, 'api_secret' => $apiSecret]);
+            $di->jwtCache->set('auth', json_encode($jwtAuth), $jwtAuth->exp);
+            $this->access_token = $jwtAuth->access_token;
+        }
     }
 
     /**
@@ -178,7 +187,7 @@ class HttpClient
         $url = $this->url.$endpoint;
         $hasData = !empty($data);
 
-        if (!empty($this->accessToken)) {
+        if (isset($this->accessToken)) {
             // Setup authentication.
             \curl_setopt($this->ch, CURLOPT_HTTPHEADER, ['Authorization' => 'Bearer '.$this->accessToken]);
         }

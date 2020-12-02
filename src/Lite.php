@@ -38,11 +38,27 @@ class Lite
         return $this->instance;
     }
 
+    /**
+     * Posts
+     */
     public function listPosts($args = [])
     {
         return $this->instance->get('posts', $args);
     }
 
+    public function retrievePost($id, $args = [])
+    {
+        return $this->instance->get('posts/'.$id, $args);
+    }
+
+    public function deletePost($id, $args = [])
+    {
+        return $this->instance->delete('posts/'.$id, $args);
+    }
+
+    /**
+     * Pages
+     */
     public function listPages($args = [])
     {
         return $this->instance->get('pages', $args);
@@ -51,5 +67,86 @@ class Lite
     public function retrievePage($id, $args = [])
     {
         return $this->instance->get('pages/'.$id, $args);
+    }
+
+    /**
+     * Categories
+     */
+    public function listCategories($args = [])
+    {
+        return $this->instance->get('categories', $args);
+    }
+
+    public function retrieveCategory($id, $args = [])
+    {
+        return $this->instance->get('categories/'.$id, $args);
+    }
+
+    /**
+     * Tags
+     */
+    public function listTags($args = [])
+    {
+        return $this->instance->get('tags', $args);
+    }
+
+    public function retrieveTag($id, $args = [])
+    {
+        return $this->instance->get('tags/'.$id, $args);
+    }
+
+    /**
+     * Comments
+     */
+    public function listComments($args = [])
+    {
+        return $this->instance->get('comments', $args);
+    }
+
+    public function retrieveComment($id, $args = [])
+    {
+        return $this->instance->get('comments/'.$id, $args);
+    }
+
+    /**
+     * Media
+     */
+    public function listMedia($args = [])
+    {
+        return $this->instance->get('media', $args);
+    }
+
+    public function retrieveMedia($id, $args = [])
+    {
+        return $this->instance->get('media/'.$id, $args);
+    }
+
+    /**
+     * Search Results
+     */
+    public function listSearchResults($args = [])
+    {
+        return $this->instance->get('search', $args);
+    }
+
+    /**
+     * Users
+     */
+    public function listUsers($args = [])
+    {
+        return $this->instance->get('users', $args);
+    }
+
+    public function retrieveUser($id, $args = [])
+    {
+        return $this->instance->get('users/'.$id, $args);
+    }
+
+    /**
+     * Custom
+     */
+    public function getCustom($route, $args = [])
+    {
+        return $this->instance->get($route, $args);
     }
 }
