@@ -5,7 +5,7 @@
     "keywords": [
         "phalapi", "phalapi-wordpress", "wordpress"
     ],
-    "license": "GPL-3.0+",
+    "license": "MulanPSL v2",
 	"minimum-stability": "dev",
     "homepage": "https://www.phalapi.net/",
     "authors": [
