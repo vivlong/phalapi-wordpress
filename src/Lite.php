@@ -29,7 +29,7 @@ class Lite
             );
             $this->instance = $wordpress;
         } catch (Exception $e) {
-            $di->logger->error('Wordpress', ['error' => $e->getMessage()]);
+            $di->logger->error(__NAMESPACE__, __FUNCTION__, ['Exception' => $e->getMessage()]);
         }
     }
 
@@ -69,10 +69,10 @@ class Lite
                 if ($rs && 400 == $rs->data->status) {
                     return $rs;
                 } else {
-                    $di->logger->error('Wordpress', $method.' # '.$route, ['request' => $lastRequest->getBody()]);
-                    $di->logger->error('Wordpress', $method.' # '.$route, ['response' => $lastResponse->getBody()]);
+                    $di->logger->error(__NAMESPACE__, $method.' # '.$route, ['request' => $lastRequest->getBody()]);
+                    $di->logger->error(__NAMESPACE__, $method.' # '.$route, ['response' => $lastResponse->getBody()]);
                 }
-                $di->logger->error('Wordpress', $method.' # '.$route, ['error' => $e->getMessage()]);
+                $di->logger->error(__NAMESPACE__, $method.' # '.$route, ['HttpClientException' => $e->getMessage()]);
 
                 return null;
             }
