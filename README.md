@@ -18,9 +18,13 @@ PhalApi 2.x扩展类库，操作wordpress。
             'version' => 'wp/v2',
             'verify_ssl' => false,
             'timeout' => 120,
-        ]
+        ],
+        'auth' => 'jwt',
+        'basic_user' => 'username',
+        'basic_pwd' => 'password',
     ),
 ```
+针对WP5.6后推出的Application Password功能，接口配置auth可选jwt或basic  
 
 ## 使用
 在文件中，使用服务：  
