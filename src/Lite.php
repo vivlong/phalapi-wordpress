@@ -21,11 +21,16 @@ class Lite
             $this->config = $di->config->get('app.Wordpress');
         }
         try {
+            $basicAuth = null;
+            if($this->config['auth'] === 'basic' && !empty($this->config['basic_user']) && !empty($this->config['basic_pwd'])) {
+                $basicAuth = base64_encode($this->config['basic_user'].':'.$this->config['basic_pwd']);
+            }
             $wordpress = new Client(
                 $this->config['url'],
                 $this->config['api_key'],
                 $this->config['api_secret'],
-                $this->config['options']
+                $this->config['options'],
+                $basicAuth,
             );
             $this->instance = $wordpress;
         } catch (Exception $e) {

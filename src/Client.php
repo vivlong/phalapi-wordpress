@@ -32,9 +32,13 @@ class Client
      * @param string $apiSecret JWT Api secret.
      * @param array  $options   Options (version, timeout, verify_ssl).
      */
-    public function __construct($url, $apiKey, $apiSecret, $options = [])
+    public function __construct($url, $apiKey, $apiSecret, $options = [], $basicAuth = null)
     {
-        $this->http = new HttpClient($url, $apiKey, $apiSecret, $options);
+        if(!empty($basicAuth)) {
+            $this->http = new HttpClient($url, $basicAuth, $options);
+        } else {
+            $this->http = new HttpClient($url, $apiKey, $apiSecret, $options);
+        }
     }
 
     /**

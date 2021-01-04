@@ -76,6 +76,25 @@ class HttpClient
     private $accessToken;
 
     /**
+     * Basic Auth.
+     *
+     * @var string
+     */
+    private $basicAuth;
+
+    /**
+     * Initialize HTTP client.
+     */
+    public function __construct()
+    {
+        $a = func_get_args(); //获取构造函数中的参数
+        $i = count($a);
+        if (method_exists($this, $f = '__construct'.$i)) {
+            call_user_func_array([$this, $f], $a);
+        }
+    }
+
+    /**
      * Initialize HTTP client.
      *
      * @param string $url       Site URL.
@@ -83,7 +102,7 @@ class HttpClient
      * @param string $apiSecret JWT api Secret.
      * @param array  $options   Client options.
      */
-    public function __construct($url, $apiKey, $apiSecret, $options)
+    public function __construct4($url, $apiKey, $apiSecret, $options)
     {
         if (!\function_exists('curl_version')) {
             throw new HttpClientException('cURL is NOT installed on this server', -1, new Request(), new Response());
@@ -102,6 +121,26 @@ class HttpClient
             $jwtAuth = $this->request('token', 'POST', ['api_key' => $apiKey, 'api_secret' => $apiSecret]);
             $di->jwtCache->set('auth', json_encode($jwtAuth), $jwtAuth->exp);
             $this->access_token = $jwtAuth->access_token;
+        }
+    }
+
+    /**
+     * Initialize HTTP client.
+     *
+     * @param string $url       Site URL.
+     * @param string $basicAuth Basic auth.
+     * @param array  $options   Client options.
+     */
+    public function __construct3($url, $basicAuth, $options)
+    {
+        if (!\function_exists('curl_version')) {
+            throw new HttpClientException('cURL is NOT installed on this server', -1, new Request(), new Response());
+        }
+        $this->options = new Options($options);
+        $this->url = $this->buildApiUrl($url);
+        $di = \PhalApi\DI();
+        if (!empty($basicAuth)) {
+            $this->basicAuth = $basicAuth;
         }
     }
 
@@ -190,6 +229,11 @@ class HttpClient
         if (isset($this->accessToken)) {
             // Setup authentication.
             \curl_setopt($this->ch, CURLOPT_HTTPHEADER, ['Authorization' => 'Bearer '.$this->accessToken]);
+        }
+
+        if (isset($this->basicAuth)) {
+            // Setup authentication.
+            \curl_setopt($this->ch, CURLOPT_HTTPHEADER, ['Authorization' => 'Basic '.$this->basicAuth]);
         }
 
         // Setup method.
