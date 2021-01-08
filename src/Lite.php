@@ -21,16 +21,27 @@ class Lite
             $this->config = $di->config->get('app.Wordpress');
         }
         try {
+            $authType = strtolower($this->config['auth']);
             $basicAuth = null;
-            if($this->config['auth'] === 'basic' && !empty($this->config['basic_user']) && !empty($this->config['basic_pwd'])) {
+            $jwtToken = null;
+            $jwtKeyPairs = null;
+            if($authType === 'basic' && !empty($this->config['basic_user']) && !empty($this->config['basic_pwd'])) {
                 $basicAuth = base64_encode($this->config['basic_user'].':'.$this->config['basic_pwd']);
+            } else if($authType === 'jwt' && !empty($this->config['jwt_token'])) {
+                $jwtToken = $this->config['jwt_token'];
+            } else {
+                $jwtKeyPairs = [
+                    'apiKey' => $this->config['api_key'],
+                    'apiSecret' => $this->config['api_secret'],
+                ];
             }
             $wordpress = new Client(
                 $this->config['url'],
-                $this->config['api_key'],
-                $this->config['api_secret'],
+                $authType,
                 $this->config['options'],
                 $basicAuth,
+                $jwtToken,
+                $jwtKeyPairs
             );
             $this->instance = $wordpress;
         } catch (Exception $e) {

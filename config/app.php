@@ -6,15 +6,16 @@ return [
     */
     'Wordpress' => array(
         'url' => '<yourSiteUrl>',
-        'api_key' => '<yourApiKey>',
-        'api_secret' => '<yourApiSecret>',
+        'api_key' => '<userApiKey>',
+        'api_secret' => '<userApiSecret>',
         'options' => [
             'version' => 'wp/v2',
             'verify_ssl' => false,
-            'timeout' => 120,
+            'timeout' => 10,
         ],
         'auth' => 'jwt',
-        'basic_user' => 'username',
-        'basic_pwd' => 'password',
+        'jwt_token' => '<JwtToken>',
+        'basic_user' => '<username>',
+        'basic_pwd' => '<password>',
     ),
 ];

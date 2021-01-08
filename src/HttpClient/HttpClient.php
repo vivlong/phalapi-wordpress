@@ -102,7 +102,7 @@ class HttpClient
      * @param string $apiSecret JWT api Secret.
      * @param array  $options   Client options.
      */
-    public function __construct4($url, $apiKey, $apiSecret, $options)
+    public function __construct5($url, $authType, $apiKey, $apiSecret, $options)
     {
         if (!\function_exists('curl_version')) {
             throw new HttpClientException('cURL is NOT installed on this server', -1, new Request(), new Response());
@@ -128,10 +128,11 @@ class HttpClient
      * Initialize HTTP client.
      *
      * @param string $url       Site URL.
-     * @param string $basicAuth Basic auth.
+     * @param string $authType  Auth Type.
+     * @param string $authToken Auth Token.
      * @param array  $options   Client options.
      */
-    public function __construct3($url, $basicAuth, $options)
+    public function __construct4($url, $authType, $authToken, $options)
     {
         if (!\function_exists('curl_version')) {
             throw new HttpClientException('cURL is NOT installed on this server', -1, new Request(), new Response());
@@ -139,8 +140,10 @@ class HttpClient
         $this->options = new Options($options);
         $this->url = $this->buildApiUrl($url);
         $di = \PhalApi\DI();
-        if (!empty($basicAuth)) {
-            $this->basicAuth = $basicAuth;
+        if($authType === 'basic' && !empty($authToken)) {
+            $this->basicAuth = $authToken;
+        } else if($authType === 'jwt' && !empty($authToken)) {
+            $this->access_token = $authToken;
         }
     }
 
