@@ -59,7 +59,7 @@ class Lite
         return $this->instance;
     }
 
-    private function request($method = 'get', $route = '/', $parameters = [])
+    private function request($method = 'get', $route = '/', $parameters = [], $returnArray = false)
     {
         $di = \PhalApi\DI();
         $wp = $this->instance;
@@ -74,7 +74,24 @@ class Lite
                         $results = $wp->delete($route, $parameters);
                         break;
                     default:
-                        $results = $wp->get($route, $parameters);
+                        $rs = $wp->get($route, $parameters);
+                        if ($returnArray) {
+                            $total = 0;
+                            $totalPage = 0;
+                            $lastResponse = $wp->http->getResponse();
+                            $headers = $lastResponse->getHeaders();
+                            if (is_array($headers) && !empty($headers)) {
+                                $total = $headers['X-WP-Total'] ?? 0;
+                                $totalPage = $headers['X-WP-TotalPages'] ?? 0;
+                            }
+                            $results = [
+                                'items' => $rs,
+                                'total' => intval($total),
+                                'totalPage' => intval($totalPage),
+                            ];
+                        } else {
+                            $results = $rs;
+                        }
                 }
 
                 return $results;
@@ -102,7 +119,7 @@ class Lite
      */
     public function listPosts($args = [])
     {
-        return $this->request('get', 'posts', $args);
+        return $this->request('get', 'posts', $args, true);
     }
 
     public function retrievePost($id, $args = [])
@@ -130,7 +147,7 @@ class Lite
      */
     public function listPages($args = [])
     {
-        return $this->request('get', 'pages', $args);
+        return $this->request('get', 'pages', $args, true);
     }
 
     public function retrievePage($id, $args = [])
@@ -143,7 +160,7 @@ class Lite
      */
     public function listCategories($args = [])
     {
-        return $this->request('get', 'categories', $args);
+        return $this->request('get', 'categories', $args, true);
     }
 
     public function retrieveCategory($id, $args = [])
@@ -171,7 +188,7 @@ class Lite
      */
     public function listTags($args = [])
     {
-        return $this->request('get', 'tags', $args);
+        return $this->request('get', 'tags', $args, true);
     }
 
     public function retrieveTag($id, $args = [])
@@ -197,7 +214,7 @@ class Lite
      */
     public function listComments($args = [])
     {
-        return $this->request('get', 'comments', $args);
+        return $this->request('get', 'comments', $args, true);
     }
 
     public function retrieveComment($id, $args = [])
@@ -246,7 +263,7 @@ class Lite
      */
     public function listUsers($args = [])
     {
-        return $this->request('get', 'users', $args);
+        return $this->request('get', 'users', $args, true);
     }
 
     public function retrieveUser($id, $args = [])
