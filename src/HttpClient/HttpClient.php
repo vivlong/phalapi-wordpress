@@ -210,6 +210,12 @@ class HttpClient
             $headers['Content-Type'] = 'application/json;charset=utf-8';
         }
 
+        if (isset($this->accessToken) && !empty($this->accessToken)) {
+            $headers['Authorization'] = 'Bearer '.$this->accessToken;
+        } else if (isset($this->basicAuth) && !empty($this->basicAuth)) {
+            $headers['Authorization'] = 'Basic '.$this->basicAuth;
+        }
+
         return $headers;
     }
 
@@ -228,16 +234,6 @@ class HttpClient
         $body = '';
         $url = $this->url.$endpoint;
         $hasData = !empty($data);
-
-        if (isset($this->accessToken)) {
-            // Setup authentication.
-            \curl_setopt($this->ch, CURLOPT_HTTPHEADER, ['Authorization' => 'Bearer '.$this->accessToken]);
-        }
-
-        if (isset($this->basicAuth)) {
-            // Setup authentication.
-            \curl_setopt($this->ch, CURLOPT_HTTPHEADER, ['Authorization' => 'Basic '.$this->basicAuth]);
-        }
 
         // Setup method.
         $this->setupMethod($method);
