@@ -201,7 +201,7 @@ class Lite
      */
     public function listTaxonomies($args = [])
     {
-        return $this->request('get', 'taxonomies', $args);
+        return $this->request('get', 'taxonomies', $args, true);
     }
 
     public function retrieveTaxonomy($taxonomy, $args = [])
@@ -227,7 +227,7 @@ class Lite
      */
     public function listMedia($args = [])
     {
-        return $this->request('get', 'media', $args);
+        return $this->request('get', 'media', $args, true);
     }
 
     public function retrieveMedia($id, $args = [])
@@ -274,9 +274,9 @@ class Lite
     /**
      * Custom.
      */
-    public function get($route, $args = [])
+    public function get($route, $args = [], $returnArray = false)
     {
-        return $this->request('get', $route, $args);
+        return $this->request('get', $route, $args , $returnArray);
     }
 
     public function post($route, $args = [])
