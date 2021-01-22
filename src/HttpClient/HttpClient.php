@@ -140,9 +140,9 @@ class HttpClient
         $this->options = new Options($options);
         $this->url = $this->buildApiUrl($url);
         $di = \PhalApi\DI();
-        if($authType === 'basic' && !empty($authToken)) {
+        if ('basic' === $authType && !empty($authToken)) {
             $this->basicAuth = $authToken;
-        } else if($authType === 'jwt' && !empty($authToken)) {
+        } elseif ('jwt' === $authType && !empty($authToken)) {
             $this->accessToken = $authToken;
         }
     }
@@ -199,7 +199,7 @@ class HttpClient
      *
      * @return array
      */
-    protected function getRequestHeaders($sendData = false)
+    protected function getRequestHeaders($sendData = false, $formData = null)
     {
         $headers = [
             'Accept' => 'application/json',
@@ -207,12 +207,17 @@ class HttpClient
         ];
 
         if ($sendData) {
-            $headers['Content-Type'] = 'application/json;charset=utf-8';
+            if (!empty($formData)) {
+                $headers['Content-Type'] = 'multipart/form-data; boundary='.$formData['delimiter'];
+                $headers['Content-Length'] = $formData['length'];
+            } else {
+                $headers['Content-Type'] = 'application/json;charset=utf-8';
+            }
         }
 
         if (isset($this->accessToken) && !empty($this->accessToken)) {
             $headers['Authorization'] = 'Bearer '.$this->accessToken;
-        } else if (isset($this->basicAuth) && !empty($this->basicAuth)) {
+        } elseif (isset($this->basicAuth) && !empty($this->basicAuth)) {
             $headers['Authorization'] = 'Basic '.$this->basicAuth;
         }
 
@@ -238,17 +243,37 @@ class HttpClient
         // Setup method.
         $this->setupMethod($method);
 
+        $formData = null;
         // Include post fields.
         if ($hasData) {
-            $body = \json_encode($data);
-            \curl_setopt($this->ch, CURLOPT_POSTFIELDS, $body);
+            if (!empty($data['file']) && !empty($data['file']['tmp_name'])) {
+                $delimiter = uniqid();
+                $fields = [
+                    'file' => file_get_contents($data['file']['tmp_name']),
+                    'filename' => $data['file']['name'],
+                ];
+                $streamData = '';
+                $streamData .= '--'.$delimiter."\r\n"
+                    .'Content-Disposition: form-data; name="file"; filename="'.$fields['filename'].'"'."\r\n"
+                    .'Content-Type:application/octet-stream'."\r\n\r\n";
+                $streamData .= $fields['file']."\r\n";
+                $streamData .= '--'.$delimiter."--\r\n";
+                $formData = [
+                    'delimiter' => $delimiter,
+                    'length' => strlen($streamData),
+                ];
+                curl_setopt($this->ch, CURLOPT_POSTFIELDS, $streamData);
+            } else {
+                $body = \json_encode($data);
+                \curl_setopt($this->ch, CURLOPT_POSTFIELDS, $body);
+            }
         }
 
         $this->request = new Request(
             $this->buildUrlQuery($url, $parameters),
             $method,
             $parameters,
-            $this->getRequestHeaders($hasData),
+            $this->getRequestHeaders($hasData, $formData),
             $body
         );
 
