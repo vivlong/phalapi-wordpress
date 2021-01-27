@@ -6,6 +6,8 @@
 namespace PhalApi\Wordpress;
 
 use PhalApi\Wordpress\HttpClient\HttpClient;
+// use GuzzleHttp\Exception\RequestException;
+// use GuzzleHttp\Exception\ClientException;
 
 /**
  * REST API Client class.
@@ -106,4 +108,48 @@ class Client
     {
         return $this->http->request($endpoint, 'OPTIONS', [], []);
     }
+
+    // private function request($endpoint, $method, $data = [], $parameters = [])
+    // {
+    //     try {
+    //         $res = $this->client->request($method, $endpoint, [
+    //             'json' => [
+    //                 'usr' => $user['usr'],
+    //                 'pwd' => $user['pwd'],
+    //             ],
+    //             'timeout' => 10,
+    //             'connect_timeout' => 15,
+    //             'verify' => false,
+    //         ]);
+    //         $code = $res->getStatusCode();
+    //         $data = json_decode($res->getBody(), true);
+
+    //         return $data;
+    //     } catch (RequestException $e) {
+    //         $di->logger->info('WordPress # getWordpress # guzzle error request');
+    //         if ($e->hasResponse()) {
+    //             $di->logger->info('WordPress # getWordpress # guzzle error response '.$e->getResponse()->getBody()->getContents());
+    //         }
+    //     } catch (ClientException $e) {
+    //         $di->logger->info('WordPress # getWordpress # guzzle error client');
+    //         if ($e->hasResponse()) {
+    //             $di->logger->info('WordPress # getWordpress # guzzle error response '.$e->getResponse()->getBody()->getContents());
+    //         }
+    //     } catch (ServerException $e) {
+    //         $di->logger->info('WordPress # getWordpress # guzzle error server');
+    //         if ($e->hasResponse()) {
+    //             $di->logger->info('WordPress # getWordpress # guzzle error response '.$e->getResponse()->getBody()->getContents());
+    //         }
+    //     } catch (Exception $e) {
+    //         $di->logger->info('Zeus # getWordpress # guzzle error');
+    //     }
+    // }
+
+    // private function getClient($url, $authType, $basicAuth, $options)
+    // {
+    //     $client = new \GuzzleHttp\Client([
+    //         'base_uri' => $url,
+    //         'timeout' => 10,
+    //     ]);
+    // }
 }

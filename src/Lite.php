@@ -283,4 +283,9 @@ class Lite
     {
         return $this->request('post', $route, $args);
     }
+
+    public function delete($route, $args = [])
+    {
+        return $this->request('delete', $route, $args);
+    }
 }
