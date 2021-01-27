@@ -70,6 +70,9 @@ class Lite
                     case 'post':
                         $results = $wp->post($route, $parameters);
                         break;
+                    case 'put':
+                        $results = $wp->put($route, $parameters);
+                        break;
                     case 'delete':
                         $results = $wp->delete($route, $parameters);
                         break;
@@ -282,6 +285,11 @@ class Lite
     public function post($route, $args = [])
     {
         return $this->request('post', $route, $args);
+    }
+
+    public function put($route, $args = [])
+    {
+        return $this->request('put', $route, $args);
     }
 
     public function delete($route, $args = [])
