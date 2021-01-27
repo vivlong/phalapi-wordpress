@@ -1,26 +1,29 @@
 {
-	"name": "vivlong/phalapi-wordpress",
-	"description": "PhalApi 2.x扩展类库，操作Wordpress。",
-	"type": "library",
-	"keywords": [
-		"phalapi", "phalapi-wordpress", "wordpress"
-	],
-  "license": "MulanPSL-2.0",
-	"minimum-stability": "stable",
-	"homepage": "https://www.phalapi.net/",
-	"authors": [{
-    "name": "vivlong",
-		"email": "vivlonglz@gmail.com",
-    "homepage": "http://vivlong.github.io",
-		"role": "Developer"
-	}],
-	"require": {
-		"php": ">=7.0.0",
-		"guzzlehttp/guzzle": "^7.2"
-	},
-	"autoload": {
-		"psr-4": {
-			"PhalApi\\Wordpress\\": "src"
-		}
-	}
+    "name": "vivlong/phalapi-wordpress",
+    "description": "PhalApi 2.x扩展类库，操作Wordpress。",
+    "type": "library",
+    "keywords": [
+        "phalapi",
+        "phalapi-wordpress",
+        "wordpress"
+    ],
+    "license": "MulanPSL-2.0",
+    "minimum-stability": "stable",
+    "homepage": "https://www.phalapi.net/",
+    "authors": [
+        {
+            "name": "vivlong",
+            "email": "vivlonglz@gmail.com",
+            "homepage": "http://vivlong.github.io",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=7.0.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PhalApi\\Wordpress\\": "src"
+        }
+    }
 }
