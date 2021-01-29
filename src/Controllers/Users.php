@@ -4,7 +4,7 @@ namespace PhalApi\Wordpress\Controllers;
 
 use PhalApi\Wordpress\Base;
 
-class Pages extends Base
+class Users extends Base
 {
     public function listUsers($args = [])
     {
