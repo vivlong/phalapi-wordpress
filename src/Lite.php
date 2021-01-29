@@ -87,6 +87,7 @@ class Lite
             'tags' => 'Tags',
             'taxonomies' => 'Taxonomies',
             'users' => 'Users',
+            'custom' => 'Custom',
         ];
     }
 }
