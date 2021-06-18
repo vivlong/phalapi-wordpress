@@ -15,4 +15,19 @@ class Users extends Base
     {
         return $this->request('get', 'users/'.$id, $args);
     }
+
+    public function createUser($args = [])
+    {
+        return $this->request('post', 'users', $args);
+    }
+
+    public function updateUser($id, $args = [])
+    {
+        return $this->request('post', 'users/'.$id, $args);
+    }
+
+    public function deleteUser($id, $args = [])
+    {
+        return $this->request('delete', 'users/'.$id, $args);
+    }
 }
