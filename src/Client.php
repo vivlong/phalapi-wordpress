@@ -1,13 +1,12 @@
 <?php
+
 /**
  * Wordpress REST API Client.
  */
 
 namespace PhalApi\Wordpress;
 
-use PhalApi\Wordpress\HttpClient\HttpClient;
-// use GuzzleHttp\Exception\RequestException;
-// use GuzzleHttp\Exception\ClientException;
+// use PhalApi\Wordpress\HttpClient\HttpClient;
 
 /**
  * REST API Client class.
@@ -17,12 +16,18 @@ class Client
     /**
      * Wordpress REST API Client version.
      */
-    const VERSION = '2.0.0';
+    const VERSION = 'wp/v2';
+
+    /**
+     * Default WP API prefix.
+     * Including leading and trailing slashes.
+     */
+    const WP_API_PREFIX = '/wp-json/';
 
     /**
      * HttpClient instance.
      *
-     * @var HttpClient
+     * @var GuzzleHttpClient
      */
     public $http;
 
@@ -36,12 +41,50 @@ class Client
      */
     public function __construct($url, $authType = 'jwt', $options = [], $basicAuth = null, $jwtToken = null, $jwtKeyPairs = null)
     {
-        if(!empty($basicAuth)) {
-            $this->http = new HttpClient($url, $authType, $basicAuth, $options);
-        } else if(!empty($jwtToken)) {
-            $this->http = new HttpClient($url, $authType, $jwtToken, $options);
-        } else if(!empty($jwtKeyPairs)) {
-            $this->http = new HttpClient($url, $authType, $jwtKeyPairs['apiKey'], $jwtKeyPairs['apiSecret'], $options);
+        $di = \PhalApi\DI();
+        if (!empty($basicAuth)) {
+            $setting = [
+                'base_uri' => $url . 'wp-json/wp/v2/',
+                'headers' => [
+                    'Authorization' => 'Basic ' . $basicAuth,
+                ]
+            ];
+            $config = array_merge($options, $setting);
+            $this->http = new \GuzzleHttp\Client($config);
+        } else if (!empty($jwtToken)) {
+            $setting = [
+                'base_uri' => $url . 'wp-json/wp/v2/',
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $jwtToken,
+                ]
+            ];
+            $config = array_merge($options, $setting);
+            $this->http = new \GuzzleHttp\Client($config);
+        } else if (!empty($jwtKeyPairs)) {
+            $setting = [
+                'base_uri' => $url . 'wp-json/wp/v2/',
+                'verify' => false,
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $jwtToken,
+                ]
+            ];
+            $config = array_merge($options, $setting);
+            $this->http = new \GuzzleHttp\Client($config);
+            $jwtToken = null;
+            if (!isset($di->cache)) {
+                $di->cache = new \PhalApi\Cache\FileCache(['path' => API_ROOT . '/runtime', 'prefix' => 'wp']);
+            }
+            $jwt = $di->cache->get($jwtKeyPairs['apiKey']);
+            if (!empty($jwt)) {
+                $jwtAuth = json_decode($jwt);
+                $jwtToken = $jwtAuth->access_token;
+            } else {
+                $tokenRequest = $this->post('token', ['api_key' => $jwtKeyPairs['apiKey'], 'api_secret' => $jwtKeyPairs['apiSecret']]);
+                $di->logger->info('WordPress # getWordpress', ['tokenRequest' => $tokenRequest]);
+                $jwtAuth = $tokenRequest->getBody();
+                $di->cache->set($jwtKeyPairs['apiKey'], json_encode($jwtAuth), $jwtAuth->exp);
+                $jwtToken = $jwtAuth->access_token;
+            }
         }
     }
 
@@ -55,7 +98,7 @@ class Client
      */
     public function post($endpoint, $data)
     {
-        return $this->http->request($endpoint, 'POST', $data);
+        return $this->http->request('POST', $endpoint, $data);
     }
 
     /**
@@ -68,7 +111,7 @@ class Client
      */
     public function put($endpoint, $data)
     {
-        return $this->http->request($endpoint, 'PUT', $data);
+        return $this->http->request('PUT', $endpoint, $data);
     }
 
     /**
@@ -81,7 +124,7 @@ class Client
      */
     public function get($endpoint, $parameters = [])
     {
-        return $this->http->request($endpoint, 'GET', [], $parameters);
+        return $this->http->request('GET', $endpoint, [], $parameters);
     }
 
     /**
@@ -94,7 +137,7 @@ class Client
      */
     public function delete($endpoint, $parameters = [])
     {
-        return $this->http->request($endpoint, 'DELETE', [], $parameters);
+        return $this->http->request('DELETE', $endpoint, [], $parameters);
     }
 
     /**
@@ -106,50 +149,6 @@ class Client
      */
     public function options($endpoint)
     {
-        return $this->http->request($endpoint, 'OPTIONS', [], []);
+        return $this->http->request('OPTIONS', $endpoint, [], []);
     }
-
-    // private function request($endpoint, $method, $data = [], $parameters = [])
-    // {
-    //     try {
-    //         $res = $this->client->request($method, $endpoint, [
-    //             'json' => [
-    //                 'usr' => $user['usr'],
-    //                 'pwd' => $user['pwd'],
-    //             ],
-    //             'timeout' => 10,
-    //             'connect_timeout' => 15,
-    //             'verify' => false,
-    //         ]);
-    //         $code = $res->getStatusCode();
-    //         $data = json_decode($res->getBody(), true);
-
-    //         return $data;
-    //     } catch (RequestException $e) {
-    //         $di->logger->info('WordPress # getWordpress # guzzle error request');
-    //         if ($e->hasResponse()) {
-    //             $di->logger->info('WordPress # getWordpress # guzzle error response '.$e->getResponse()->getBody()->getContents());
-    //         }
-    //     } catch (ClientException $e) {
-    //         $di->logger->info('WordPress # getWordpress # guzzle error client');
-    //         if ($e->hasResponse()) {
-    //             $di->logger->info('WordPress # getWordpress # guzzle error response '.$e->getResponse()->getBody()->getContents());
-    //         }
-    //     } catch (ServerException $e) {
-    //         $di->logger->info('WordPress # getWordpress # guzzle error server');
-    //         if ($e->hasResponse()) {
-    //             $di->logger->info('WordPress # getWordpress # guzzle error response '.$e->getResponse()->getBody()->getContents());
-    //         }
-    //     } catch (Exception $e) {
-    //         $di->logger->info('Zeus # getWordpress # guzzle error');
-    //     }
-    // }
-
-    // private function getClient($url, $authType, $basicAuth, $options)
-    // {
-    //     $client = new \GuzzleHttp\Client([
-    //         'base_uri' => $url,
-    //         'timeout' => 10,
-    //     ]);
-    // }
 }

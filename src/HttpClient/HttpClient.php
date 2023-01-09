@@ -112,14 +112,16 @@ class HttpClient
         $this->apiKey = $apiKey;
         $this->apiSecret = $apiSecret;
         $di = \PhalApi\DI();
-        $di->jwtCache = new \PhalApi\Cache\FileCache(['path' => API_ROOT.'/runtime', 'prefix' => 'wp']);
-        $jwt = $di->jwtCache->get($apiKey);
+        if(!isset($di->cache)) {
+            $di->cache = new \PhalApi\Cache\FileCache(['path' => API_ROOT.'/runtime', 'prefix' => 'wp']);
+        }
+        $jwt = $di->cache->get($apiKey);
         if (!empty($jwt)) {
             $jwtAuth = json_decode($jwt);
             $this->accessToken = $jwtAuth->access_token;
         } else {
             $jwtAuth = $this->request('token', 'POST', ['api_key' => $apiKey, 'api_secret' => $apiSecret]);
-            $di->jwtCache->set($apiKey, json_encode($jwtAuth), $jwtAuth->exp);
+            $di->cache->set($apiKey, json_encode($jwtAuth), $jwtAuth->exp);
             $this->accessToken = $jwtAuth->access_token;
         }
     }

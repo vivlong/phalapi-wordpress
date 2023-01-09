@@ -2,7 +2,11 @@
 
 namespace PhalApi\Wordpress;
 
-use PhalApi\Wordpress\HttpClient\HttpClientException;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ServerException;
+use PhalApi\Exception\BadRequestException;
+use Exception;
 
 abstract class Base
 {
@@ -17,38 +21,55 @@ abstract class Base
     {
         $di = \PhalApi\DI();
         $wordpress = $this->instance;
+        $logBase = __NAMESPACE__ . DIRECTORY_SEPARATOR . __CLASS__ . DIRECTORY_SEPARATOR . __FUNCTION__ . ' # ' . $method . ' # ' . $route;
         if (!empty($wordpress)) {
             try {
                 $results = null;
                 switch ($method) {
                     case 'post':
                         $results = $wordpress->post($route, $parameters);
-                        break;
+                        $code = $results->getStatusCode();
+                        if ($code !== 200) {
+                            throw new BadRequestException('error code', $code);
+                        }
+                        return json_decode($results->getBody(), true);
                     case 'put':
                         $results = $wordpress->put($route, $parameters);
-                        break;
+                        $code = $results->getStatusCode();
+                        if ($code !== 200) {
+                            throw new BadRequestException('error code', $code);
+                        }
+                        return json_decode($results->getBody(), true);
                     case 'delete':
                         $results = $wordpress->delete($route, $parameters);
-                        break;
+                        $code = $results->getStatusCode();
+                        if ($code !== 200) {
+                            throw new BadRequestException('error code', $code);
+                        }
+                        return json_decode($results->getBody(), true);
                     default:
                         $rs = $wordpress->get($route, $parameters);
+                        $code = $rs->getStatusCode();
+                        if ($code !== 200) {
+                            throw new BadRequestException('error code', $code);
+                        }
+                        $data = json_decode($rs->getBody(), true);
                         if ($returnArray) {
                             $total = 0;
                             $totalPage = 0;
                             $queries = 0;
                             $seconds = 0;
                             $memory = 0;
-                            $lastResponse = $wordpress->http->getResponse();
-                            $headers = $lastResponse->getHeaders();
+                            $headers = $rs->getHeaders();
                             if (is_array($headers) && !empty($headers)) {
-                                $total = $headers['X-WP-Total'] ?? 0;
-                                $totalPage = $headers['X-WP-TotalPages'] ?? 0;
-                                $queries = $headers['X-WP-Queries'] ?? 0;
-                                $seconds = $headers['X-WP-Seconds'] ?? 0;
-                                $memory = $headers['X-WP-Memory'] ?? 0;
+                                $total = isset($headers['X-WP-Total']) ? $headers['X-WP-Total'][0] : 0;
+                                $totalPage = isset($headers['X-WP-TotalPages']) ? $headers['X-WP-TotalPages'][0] : 0;
+                                $queries = isset($headers['X-WP-Queries']) ? $headers['X-WP-Queries'][0] : 0;
+                                $seconds = isset($headers['X-WP-Seconds']) ? $headers['X-WP-Seconds'][0] : 0;
+                                $memory = isset($headers['X-WP-Memory']) ? $headers['X-WP-Memory'][0] : 0;
                             }
                             $results = [
-                                'items' => $rs,
+                                'items' => $data,
                                 'total' => intval($total),
                                 'totalPage' => intval($totalPage),
                                 'queries' => $queries,
@@ -56,24 +77,28 @@ abstract class Base
                                 'memory' => $memory,
                             ];
                         } else {
-                            $results = $rs;
+                            $results = $data;
                         }
                 }
-
                 return $results;
-            } catch (HttpClientException $e) {
-                $lastRequest = $wordpress->http->getRequest();
-                $lastResponse = $wordpress->http->getResponse();
-                $rs = json_decode($lastResponse->getBody());
-                if ($rs?->data?->status === 400) {
-                    return $rs;
-                } else {
-                    $di->logger->error(__CLASS__.DIRECTORY_SEPARATOR.__FUNCTION__.' # '.$method.' # '.$route, ['request' => $lastRequest->getBody()]);
-                    $di->logger->error(__CLASS__.DIRECTORY_SEPARATOR.__FUNCTION__.' # '.$method.' # '.$route, ['response' => $lastResponse->getBody()]);
+            } catch (RequestException $e) {
+                $di->logger->error($logBase . ' # RequestException');
+                if ($e->hasResponse()) {
+                    $di->logger->error($logBase, ['RequestException' => \Psr7\str($e->getResponse())]);
                 }
-                $di->logger->error(__CLASS__.DIRECTORY_SEPARATOR.__FUNCTION__.' # '.$method.' # '.$route, ['HttpClientException' => $e->getMessage()]);
-
                 return null;
+            } catch (ClientException $e) {
+                $di->logger->error($logBase . ' # ClientException');
+                if ($e->hasResponse()) {
+                    $di->logger->error($logBase, ['ClientException' => \Psr7\str($e->getResponse())]);
+                }
+            } catch (ServerException $e) {
+                $di->logger->error($logBase . ' # ServerException');
+                if ($e->hasResponse()) {
+                    $di->logger->error($logBase, ['ServerException' => \Psr7\str($e->getResponse())]);
+                }
+            } catch (Exception $e) {
+                $di->logger->error($logBase, ['Exception' => $e->getMessage()]);
             }
         } else {
             return null;

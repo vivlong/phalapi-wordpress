@@ -9,8 +9,9 @@ return [
         'api_key' => '<userApiKey>',
         'api_secret' => '<userApiSecret>',
         'options' => [
-            'version' => 'wp/v2',
-            'verify_ssl' => false,
+            // 'version' => 'wp/v2',
+            // 'verify_ssl' => false,
+            'verify' => false,
             'timeout' => 10,
         ],
         'auth' => 'jwt',

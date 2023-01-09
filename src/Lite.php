@@ -2,7 +2,8 @@
 
 namespace PhalApi\Wordpress;
 
-use PhalApi\Wordpress\HttpClient\HttpClientException;
+// use PhalApi\Wordpress\HttpClient\HttpClientException;
+use Exception;
 
 /**
  * Wordpress操作类.
