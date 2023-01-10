@@ -42,9 +42,12 @@ class Client
     public function __construct($url, $authType = 'jwt', $options = [], $basicAuth = null, $jwtToken = null, $jwtKeyPairs = null)
     {
         $di = \PhalApi\DI();
+        if(substr($url, -1) !== '/') {
+            $url = $url.'/';
+        }
         if (!empty($basicAuth)) {
             $setting = [
-                'base_uri' => $url . 'wp-json/wp/v2/',
+                'base_uri' => $url,
                 'headers' => [
                     'Authorization' => 'Basic ' . $basicAuth,
                 ]
@@ -53,7 +56,7 @@ class Client
             $this->http = new \GuzzleHttp\Client($config);
         } else if (!empty($jwtToken)) {
             $setting = [
-                'base_uri' => $url . 'wp-json/wp/v2/',
+                'base_uri' => $url,
                 'headers' => [
                     'Authorization' => 'Bearer ' . $jwtToken,
                 ]
@@ -62,7 +65,7 @@ class Client
             $this->http = new \GuzzleHttp\Client($config);
         } else if (!empty($jwtKeyPairs)) {
             $setting = [
-                'base_uri' => $url . 'wp-json/wp/v2/',
+                'base_uri' => $url,
                 'verify' => false,
                 'headers' => [
                     'Authorization' => 'Bearer ' . $jwtToken,
