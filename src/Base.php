@@ -2,6 +2,7 @@
 
 namespace PhalApi\Wordpress;
 
+use GuzzleHttp\Psr7;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
@@ -84,18 +85,18 @@ abstract class Base
             } catch (RequestException $e) {
                 $di->logger->error($logBase . ' # RequestException');
                 if ($e->hasResponse()) {
-                    $di->logger->error($logBase, ['RequestException' => \Psr7\str($e->getResponse())]);
+                    $di->logger->error($logBase, ['RequestException' => Psr7\Message::toString($e->getResponse())]);
                 }
                 return null;
             } catch (ClientException $e) {
                 $di->logger->error($logBase . ' # ClientException');
                 if ($e->hasResponse()) {
-                    $di->logger->error($logBase, ['ClientException' => \Psr7\str($e->getResponse())]);
+                    $di->logger->error($logBase, ['ClientException' => Psr7\Message::toString($e->getResponse())]);
                 }
             } catch (ServerException $e) {
                 $di->logger->error($logBase . ' # ServerException');
                 if ($e->hasResponse()) {
-                    $di->logger->error($logBase, ['ServerException' => \Psr7\str($e->getResponse())]);
+                    $di->logger->error($logBase, ['ServerException' => Psr7\Message::toString($e->getResponse())]);
                 }
             } catch (Exception $e) {
                 $di->logger->error($logBase, ['Exception' => $e->getMessage()]);
