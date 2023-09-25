@@ -101,7 +101,7 @@ class Client
      */
     public function post($endpoint, $data)
     {
-        return $this->http->request('POST', $endpoint, $data);
+        return $this->http->request('POST', $endpoint, ['form_params' => $data], $data);
     }
 
     /**
@@ -114,7 +114,7 @@ class Client
      */
     public function put($endpoint, $data)
     {
-        return $this->http->request('PUT', $endpoint, $data);
+        return $this->http->request('PUT', $endpoint, ['form_params' => $data], $data);
     }
 
     /**
@@ -142,7 +142,7 @@ class Client
      */
     public function delete($endpoint, $parameters = [])
     {
-        return $this->http->request('DELETE', $endpoint, [], $parameters);
+        return $this->http->request('DELETE', $endpoint, ['form_params' => $parameters], $parameters);
     }
 
     /**

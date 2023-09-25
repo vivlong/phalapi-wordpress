@@ -63,6 +63,7 @@ abstract class Base
                             $memory = 0;
                             $headers = $rs->getHeaders();
                             if (is_array($headers) && !empty($headers)) {
+                                // $di->logger->info($logBase . ' # headers '. json_encode($headers));
                                 $total = $headers['X-WP-Total'][0] ?? $headers['x-wp-total'][0] ?? $headers['X-WP-TOTAL'][0] ?? 0;
                                 $totalPage = $headers['X-WP-TotalPages'][0] ?? $headers['x-wp-totalpages'] ?? $headers['X-WP-TOTALPAGES'] ?? 0;
                                 $queries = $headers['X-WP-Queries'][0] ?? $headers['x-wp-queries'][0] ?? $headers['X-WP-QUERIES'][0] ?? 0;
