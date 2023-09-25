@@ -30,29 +30,29 @@ abstract class Base
                     case 'post':
                         $results = $wordpress->post($route, $parameters);
                         $code = $results->getStatusCode();
-                        if ($code !== 200) {
-                            throw new BadRequestException('error code', $code);
+                        if ($code >= 400) {
+                            throw new BadRequestException('Error Code', $code);
                         }
                         return json_decode($results->getBody(), true);
                     case 'put':
                         $results = $wordpress->put($route, $parameters);
                         $code = $results->getStatusCode();
-                        if ($code !== 200) {
-                            throw new BadRequestException('error code', $code);
+                        if ($code >= 400) {
+                            throw new BadRequestException('Error Code', $code);
                         }
                         return json_decode($results->getBody(), true);
                     case 'delete':
                         $results = $wordpress->delete($route, $parameters);
                         $code = $results->getStatusCode();
-                        if ($code !== 200) {
-                            throw new BadRequestException('error code', $code);
+                        if ($code >= 400) {
+                            throw new BadRequestException('Error Code', $code);
                         }
                         return json_decode($results->getBody(), true);
                     default:
                         $rs = $wordpress->get($route, $parameters);
                         $code = $rs->getStatusCode();
-                        if ($code !== 200) {
-                            throw new BadRequestException('error code', $code);
+                        if ($code >= 400) {
+                            throw new BadRequestException('Error Code', $code);
                         }
                         $data = json_decode($rs->getBody(), true);
                         if ($returnArray) {
@@ -63,11 +63,11 @@ abstract class Base
                             $memory = 0;
                             $headers = $rs->getHeaders();
                             if (is_array($headers) && !empty($headers)) {
-                                $total = isset($headers['X-WP-Total']) ? $headers['X-WP-Total'][0] : 0;
-                                $totalPage = isset($headers['X-WP-TotalPages']) ? $headers['X-WP-TotalPages'][0] : 0;
-                                $queries = isset($headers['X-WP-Queries']) ? $headers['X-WP-Queries'][0] : 0;
-                                $seconds = isset($headers['X-WP-Seconds']) ? $headers['X-WP-Seconds'][0] : 0;
-                                $memory = isset($headers['X-WP-Memory']) ? $headers['X-WP-Memory'][0] : 0;
+                                $total = $headers['X-WP-Total'][0] ?? $headers['x-wp-total'][0] ?? $headers['X-WP-TOTAL'][0] ?? 0;
+                                $totalPage = $headers['X-WP-TotalPages'][0] ?? $headers['x-wp-totalpages'] ?? $headers['X-WP-TOTALPAGES'] ?? 0;
+                                $queries = $headers['X-WP-Queries'][0] ?? $headers['x-wp-queries'][0] ?? $headers['X-WP-QUERIES'][0] ?? 0;
+                                $seconds = $headers['X-WP-Seconds'][0] ?? $headers['x-wp-seconds'][0] ?? $headers['X-WP-SECONDS'][0] ?? 0;
+                                $memory = $headers['X-WP-Memory'][0] ?? $headers['x-wp-memory'][0] ?? $headers['X-WP-MEMORY'][0] ?? 0;
                             }
                             $results = [
                                 'items' => $data,

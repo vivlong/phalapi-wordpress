@@ -127,7 +127,9 @@ class Client
      */
     public function get($endpoint, $parameters = [])
     {
-        return $this->http->request('GET', $endpoint, [], $parameters);
+        return $this->http->request('GET', $endpoint, [
+            'query' => $parameters
+        ]);
     }
 
     /**
