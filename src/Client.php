@@ -7,6 +7,7 @@
 namespace PhalApi\Wordpress;
 
 // use PhalApi\Wordpress\HttpClient\HttpClient;
+use GuzzleHttp\Psr7;
 
 /**
  * REST API Client class.
@@ -101,7 +102,27 @@ class Client
      */
     public function post($endpoint, $data)
     {
-        return $this->http->request('POST', $endpoint, ['form_params' => $data], $data);
+        $di = \PhalApi\DI();
+        if(isset($data['file']) && isset($data['file']['tmp_name'])) {
+            $multipart = [];
+            foreach ($data as $key => $value) {
+                if($key === 'file') {
+                    array_push($multipart, [
+                        'name' => $key,
+                        'contents' => Psr7\Utils::tryFopen($value['tmp_name'], 'r'),
+                        'filename' => $value['name'],
+                    ]);
+                } else {
+                    array_push($multipart, [
+                        'name' => $key,
+                        'contents' => $value,
+                    ]);
+                }
+            }
+            return $this->http->request('POST', $endpoint, ['multipart' => $multipart]);
+        } else {
+            return $this->http->request('POST', $endpoint, ['form_params' => $data]);
+        }
     }
 
     /**
