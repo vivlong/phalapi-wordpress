@@ -30,6 +30,7 @@ abstract class Base
                     case 'post':
                         $results = $wordpress->post($route, $parameters);
                         $code = $results->getStatusCode();
+                        // $di->logger->info($logBase . ' # body ', $results->getBody());
                         if ($code >= 400) {
                             throw new BadRequestException('Error Code', $code);
                         }

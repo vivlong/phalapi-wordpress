@@ -109,7 +109,7 @@ class Client
                 if($key === 'file') {
                     array_push($multipart, [
                         'name' => $key,
-                        'contents' => Psr7\Utils::tryFopen($value['tmp_name'], 'r'),
+                        'contents' => Psr7\Utils::tryFopen($data['file']['tmp_name'], 'r'),
                         'filename' => $value['name'],
                     ]);
                 } else {
@@ -135,7 +135,7 @@ class Client
      */
     public function put($endpoint, $data)
     {
-        return $this->http->request('PUT', $endpoint, ['form_params' => $data], $data);
+        return $this->http->request('PUT', $endpoint, ['form_params' => $data]);
     }
 
     /**
@@ -163,7 +163,7 @@ class Client
      */
     public function delete($endpoint, $parameters = [])
     {
-        return $this->http->request('DELETE', $endpoint, ['form_params' => $parameters], $parameters);
+        return $this->http->request('DELETE', $endpoint, ['form_params' => $parameters]);
     }
 
     /**
@@ -175,6 +175,6 @@ class Client
      */
     public function options($endpoint)
     {
-        return $this->http->request('OPTIONS', $endpoint, [], []);
+        return $this->http->request('OPTIONS', $endpoint, []);
     }
 }
