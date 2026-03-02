@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Wordpress REST API HTTP Client Options.
  */
@@ -13,40 +16,33 @@ class Options
     /**
      * Default Wordpress REST API version.
      */
-    const VERSION = 'wp/v2';
+    public const VERSION = 'wp/v2';
 
     /**
      * Default request timeout.
      */
-    const TIMEOUT = 15;
+    public const TIMEOUT = 15;
 
     /**
      * Default WP API prefix.
      * Including leading and trailing slashes.
      */
-    const WP_API_PREFIX = '/wp-json/';
+    public const WP_API_PREFIX = '/wp-json/';
 
     /**
      * Default User Agent.
      * No version number.
      */
-    const USER_AGENT = 'Wordpress API Client-PHP';
-
-    /**
-     * Options.
-     *
-     * @var array
-     */
-    private $options;
+    public const USER_AGENT = 'Wordpress API Client-PHP';
 
     /**
      * Initialize HTTP client options.
      *
      * @param array $options Client options.
      */
-    public function __construct($options)
-    {
-        $this->options = $options;
+    public function __construct(
+        private array $options = []
+    ) {
     }
 
     /**
@@ -54,9 +50,9 @@ class Options
      *
      * @return string
      */
-    public function getVersion()
+    public function getVersion(): string
     {
-        return isset($this->options['version']) ? $this->options['version'] : self::VERSION;
+        return $this->options['version'] ?? self::VERSION;
     }
 
     /**
@@ -64,9 +60,9 @@ class Options
      *
      * @return bool
      */
-    public function verifySsl()
+    public function verifySsl(): bool
     {
-        return isset($this->options['verify_ssl']) ? (bool) $this->options['verify_ssl'] : true;
+        return (bool) ($this->options['verify_ssl'] ?? true);
     }
 
     /**
@@ -74,9 +70,9 @@ class Options
      *
      * @return int
      */
-    public function getTimeout()
+    public function getTimeout(): int
     {
-        return isset($this->options['timeout']) ? (int) $this->options['timeout'] : self::TIMEOUT;
+        return (int) ($this->options['timeout'] ?? self::TIMEOUT);
     }
 
     /**
@@ -84,9 +80,9 @@ class Options
      *
      * @return bool
      */
-    public function isWPAPI()
+    public function isWPAPI(): bool
     {
-        return isset($this->options['wp_api']) ? (bool) $this->options['wp_api'] : true;
+        return (bool) ($this->options['wp_api'] ?? true);
     }
 
     /**
@@ -94,9 +90,9 @@ class Options
      *
      * @return string
      */
-    public function apiPrefix()
+    public function apiPrefix(): string
     {
-        return isset($this->options['wp_api_prefix']) ? $this->options['wp_api_prefix'] : self::WP_API_PREFIX;
+        return $this->options['wp_api_prefix'] ?? self::WP_API_PREFIX;
     }
 
     /**
@@ -104,9 +100,9 @@ class Options
      *
      * @return string
      */
-    public function userAgent()
+    public function userAgent(): string
     {
-        return isset($this->options['user_agent']) ? $this->options['user_agent'] : self::USER_AGENT;
+        return $this->options['user_agent'] ?? self::USER_AGENT;
     }
 
     /**
@@ -114,8 +110,8 @@ class Options
      *
      * @return bool
      */
-    public function getFollowRedirects()
+    public function getFollowRedirects(): bool
     {
-        return isset($this->options['follow_redirects']) ? (bool) $this->options['follow_redirects'] : false;
+        return (bool) ($this->options['follow_redirects'] ?? false);
     }
 }

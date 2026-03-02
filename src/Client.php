@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Wordpress REST API Client.
  */
 
 namespace PhalApi\Wordpress;
 
-// use PhalApi\Wordpress\HttpClient\HttpClient;
 use GuzzleHttp\Psr7;
+use Psr\Http\Message\ResponseInterface;
+use Throwable;
 
 /**
  * REST API Client class.
@@ -17,123 +20,154 @@ class Client
     /**
      * Wordpress REST API Client version.
      */
-    const VERSION = 'wp/v2';
+    public const VERSION = 'wp/v2';
 
     /**
      * Default WP API prefix.
      * Including leading and trailing slashes.
      */
-    const WP_API_PREFIX = '/wp-json/';
-
-    /**
-     * HttpClient instance.
-     *
-     * @var GuzzleHttpClient
-     */
-    public $http;
+    public const WP_API_PREFIX = '/wp-json/';
 
     /**
      * Initialize client.
      *
-     * @param string $url       Site URL.
-     * @param string $apiKey    JWT Api key.
-     * @param string $apiSecret JWT Api secret.
-     * @param array  $options   Options (version, timeout, verify_ssl).
+     * @param string $url Site URL.
+     * @param string $authType Auth type (jwt, basic).
+     * @param array $options Options (version, timeout, verify_ssl).
+     * @param string|null $basicAuth Basic authentication token.
+     * @param string|null $jwtToken JWT token.
+     * @param array|null $jwtKeyPairs JWT key pairs.
      */
-    public function __construct($url, $authType = 'jwt', $options = [], $basicAuth = null, $jwtToken = null, $jwtKeyPairs = null)
-    {
+    public function __construct(
+        protected string $url,
+        protected string $authType = 'jwt',
+        protected array $options = [],
+        ?string $basicAuth = null,
+        ?string $jwtToken = null,
+        ?array $jwtKeyPairs = null
+    ) {
         $di = \PhalApi\DI();
-        if(substr($url, -1) !== '/') {
-            $url = $url.'/';
+
+        // Ensure URL ends with slash
+        if (!str_ends_with($this->url, '/')) {
+            $this->url .= '/';
         }
-        if (!empty($basicAuth)) {
-            $setting = [
-                'base_uri' => $url,
-                'headers' => [
-                    'Authorization' => 'Basic ' . $basicAuth,
-                ]
-            ];
-            $config = array_merge($options, $setting);
+
+        $config = $this->buildConfig($basicAuth, $jwtToken);
+
+        if ($jwtKeyPairs !== null) {
+            $this->http = new \GuzzleHttp\Client(array_merge($config, ['verify' => false]));
+            $this->handleJwtKeyPairs($jwtKeyPairs, $di);
+        } else {
             $this->http = new \GuzzleHttp\Client($config);
-        } else if (!empty($jwtToken)) {
-            $setting = [
-                'base_uri' => $url,
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $jwtToken,
-                ]
-            ];
-            $config = array_merge($options, $setting);
-            $this->http = new \GuzzleHttp\Client($config);
-        } else if (!empty($jwtKeyPairs)) {
-            $setting = [
-                'base_uri' => $url,
-                'verify' => false,
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $jwtToken,
-                ]
-            ];
-            $config = array_merge($options, $setting);
-            $this->http = new \GuzzleHttp\Client($config);
-            $jwtToken = null;
-            if (!isset($di->cache)) {
-                $di->cache = new \PhalApi\Cache\FileCache(['path' => API_ROOT . '/runtime', 'prefix' => 'wp']);
-            }
-            $jwt = $di->cache->get($jwtKeyPairs['apiKey']);
-            if (!empty($jwt)) {
-                $jwtAuth = json_decode($jwt);
-                $jwtToken = $jwtAuth->access_token;
-            } else {
-                $tokenRequest = $this->post('token', ['api_key' => $jwtKeyPairs['apiKey'], 'api_secret' => $jwtKeyPairs['apiSecret']]);
-                $di->logger->info('WordPress # getWordpress', ['tokenRequest' => $tokenRequest]);
-                $jwtAuth = $tokenRequest->getBody();
-                $di->cache->set($jwtKeyPairs['apiKey'], json_encode($jwtAuth), $jwtAuth->exp);
-                $jwtToken = $jwtAuth->access_token;
-            }
         }
+    }
+
+    /**
+     * Build Guzzle configuration.
+     */
+    private function buildConfig(?string $basicAuth, ?string $jwtToken): array
+    {
+        $headers = [];
+
+        if ($basicAuth !== null) {
+            $headers['Authorization'] = 'Basic ' . $basicAuth;
+        } elseif ($jwtToken !== null) {
+            $headers['Authorization'] = 'Bearer ' . $jwtToken;
+        }
+
+        return array_merge($this->options, [
+            'base_uri' => $this->url,
+            'headers' => $headers,
+        ]);
+    }
+
+    /**
+     * Handle JWT key pairs authentication.
+     */
+    private function handleJwtKeyPairs(array $jwtKeyPairs, \PhalApi\DI $di): void
+    {
+        if (!isset($di->cache)) {
+            $di->cache = new \PhalApi\Cache\FileCache(['path' => API_ROOT . '/runtime', 'prefix' => 'wp']);
+        }
+
+        $jwt = $di->cache->get($jwtKeyPairs['apiKey']);
+
+        if (!empty($jwt)) {
+            $jwtAuth = json_decode($jwt);
+            $jwtToken = $jwtAuth->access_token;
+        } else {
+            $tokenRequest = $this->post('token', [
+                'api_key' => $jwtKeyPairs['apiKey'],
+                'api_secret' => $jwtKeyPairs['apiSecret'],
+            ]);
+            $di->logger->info('WordPress # getWordpress', ['tokenRequest' => $tokenRequest]);
+            $jwtAuth = $tokenRequest->getBody();
+            $di->cache->set($jwtKeyPairs['apiKey'], json_encode($jwtAuth), $jwtAuth->exp);
+            $jwtToken = $jwtAuth->access_token;
+        }
+
+        // Update HTTP client with JWT token
+        $this->http = new \GuzzleHttp\Client([
+            'base_uri' => $this->url,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $jwtToken,
+            ],
+            'verify' => false,
+        ]);
     }
 
     /**
      * POST method.
      *
      * @param string $endpoint API endpoint.
-     * @param array  $data     Request data.
-     *
-     * @return array
+     * @param array $data Request data.
+     * @return ResponseInterface
      */
-    public function post($endpoint, $data)
+    public function post(string $endpoint, array $data): ResponseInterface
     {
-        $di = \PhalApi\DI();
-        if(isset($data['file']) && isset($data['file']['tmp_name'])) {
-            $multipart = [];
-            foreach ($data as $key => $value) {
-                if($key === 'file') {
-                    array_push($multipart, [
-                        'name' => $key,
-                        'contents' => Psr7\Utils::tryFopen($data['file']['tmp_name'], 'r'),
-                        'filename' => $value['name'],
-                    ]);
-                } else {
-                    array_push($multipart, [
-                        'name' => $key,
-                        'contents' => $value,
-                    ]);
-                }
-            }
-            return $this->http->request('POST', $endpoint, ['multipart' => $multipart]);
-        } else {
-            return $this->http->request('POST', $endpoint, ['form_params' => $data]);
+        if (isset($data['file'], $data['file']['tmp_name'])) {
+            return $this->http->request('POST', $endpoint, [
+                'multipart' => $this->buildMultipartData($data),
+            ]);
         }
+
+        return $this->http->request('POST', $endpoint, ['form_params' => $data]);
+    }
+
+    /**
+     * Build multipart data for file uploads.
+     */
+    private function buildMultipartData(array $data): array
+    {
+        $multipart = [];
+
+        foreach ($data as $key => $value) {
+            if ($key === 'file') {
+                $multipart[] = [
+                    'name' => $key,
+                    'contents' => Psr7\Utils::tryFopen($data['file']['tmp_name'], 'r'),
+                    'filename' => $value['name'],
+                ];
+            } else {
+                $multipart[] = [
+                    'name' => $key,
+                    'contents' => $value,
+                ];
+            }
+        }
+
+        return $multipart;
     }
 
     /**
      * PUT method.
      *
      * @param string $endpoint API endpoint.
-     * @param array  $data     Request data.
-     *
-     * @return array
+     * @param array $data Request data.
+     * @return ResponseInterface
      */
-    public function put($endpoint, $data)
+    public function put(string $endpoint, array $data): ResponseInterface
     {
         return $this->http->request('PUT', $endpoint, ['form_params' => $data]);
     }
@@ -141,27 +175,23 @@ class Client
     /**
      * GET method.
      *
-     * @param string $endpoint   API endpoint.
-     * @param array  $parameters Request parameters.
-     *
-     * @return array
+     * @param string $endpoint API endpoint.
+     * @param array $parameters Request parameters.
+     * @return ResponseInterface
      */
-    public function get($endpoint, $parameters = [])
+    public function get(string $endpoint, array $parameters = []): ResponseInterface
     {
-        return $this->http->request('GET', $endpoint, [
-            'query' => $parameters
-        ]);
+        return $this->http->request('GET', $endpoint, ['query' => $parameters]);
     }
 
     /**
      * DELETE method.
      *
-     * @param string $endpoint   API endpoint.
-     * @param array  $parameters Request parameters.
-     *
-     * @return array
+     * @param string $endpoint API endpoint.
+     * @param array $parameters Request parameters.
+     * @return ResponseInterface
      */
-    public function delete($endpoint, $parameters = [])
+    public function delete(string $endpoint, array $parameters = []): ResponseInterface
     {
         return $this->http->request('DELETE', $endpoint, ['form_params' => $parameters]);
     }
@@ -170,10 +200,9 @@ class Client
      * OPTIONS method.
      *
      * @param string $endpoint API endpoint.
-     *
-     * @return array
+     * @return ResponseInterface
      */
-    public function options($endpoint)
+    public function options(string $endpoint): ResponseInterface
     {
         return $this->http->request('OPTIONS', $endpoint, []);
     }

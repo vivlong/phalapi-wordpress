@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhalApi\Wordpress;
 
 use GuzzleHttp\Psr7;
@@ -7,104 +9,174 @@ use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
 use PhalApi\Exception\BadRequestException;
-use Exception;
+use Throwable;
 
 abstract class Base
 {
-    protected $instance;
-
-    public function __construct($instance)
-    {
-        $this->instance = $instance;
+    public function __construct(
+        protected Client $instance
+    ) {
     }
 
-    public function request($method = 'get', $route = '/', $parameters = [], $returnArray = false)
-    {
+    /**
+     * Make request to WordPress API.
+     *
+     * @param string $method HTTP method (get, post, put, delete)
+     * @param string $route API route
+     * @param array $parameters Request parameters
+     * @param bool $returnArray Return as array with pagination info
+     * @return array|null Response data or null on error
+     */
+    public function request(
+        string $method = 'get',
+        string $route = '/',
+        array $parameters = [],
+        bool $returnArray = false
+    ): array|null {
         $di = \PhalApi\DI();
         $wordpress = $this->instance;
         $logBase = __NAMESPACE__ . DIRECTORY_SEPARATOR . __CLASS__ . DIRECTORY_SEPARATOR . __FUNCTION__ . ' # ' . $method . ' # ' . $route;
-        if (!empty($wordpress)) {
-            try {
-                $results = null;
-                switch ($method) {
-                    case 'post':
-                        $results = $wordpress->post($route, $parameters);
-                        $code = $results->getStatusCode();
-                        // $di->logger->info($logBase . ' # body ', $results->getBody());
-                        if ($code >= 400) {
-                            throw new BadRequestException('Error Code', $code);
-                        }
-                        return json_decode($results->getBody(), true);
-                    case 'put':
-                        $results = $wordpress->put($route, $parameters);
-                        $code = $results->getStatusCode();
-                        if ($code >= 400) {
-                            throw new BadRequestException('Error Code', $code);
-                        }
-                        return json_decode($results->getBody(), true);
-                    case 'delete':
-                        $results = $wordpress->delete($route, $parameters);
-                        $code = $results->getStatusCode();
-                        if ($code >= 400) {
-                            throw new BadRequestException('Error Code', $code);
-                        }
-                        return json_decode($results->getBody(), true);
-                    default:
-                        $rs = $wordpress->get($route, $parameters);
-                        $code = $rs->getStatusCode();
-                        if ($code >= 400) {
-                            throw new BadRequestException('Error Code', $code);
-                        }
-                        $data = json_decode($rs->getBody(), true);
-                        if ($returnArray) {
-                            $total = 0;
-                            $totalPage = 0;
-                            $queries = 0;
-                            $seconds = 0;
-                            $memory = 0;
-                            $headers = $rs->getHeaders();
-                            if (is_array($headers) && !empty($headers)) {
-                                // $di->logger->info($logBase . ' # headers '. json_encode($headers));
-                                $total = $headers['X-WP-Total'][0] ?? $headers['x-wp-total'][0] ?? $headers['X-WP-TOTAL'][0] ?? 0;
-                                $totalPage = $headers['X-WP-TotalPages'][0] ?? $headers['x-wp-totalpages'] ?? $headers['X-WP-TOTALPAGES'] ?? 0;
-                                $queries = $headers['X-WP-Queries'][0] ?? $headers['x-wp-queries'][0] ?? $headers['X-WP-QUERIES'][0] ?? 0;
-                                $seconds = $headers['X-WP-Seconds'][0] ?? $headers['x-wp-seconds'][0] ?? $headers['X-WP-SECONDS'][0] ?? 0;
-                                $memory = $headers['X-WP-Memory'][0] ?? $headers['x-wp-memory'][0] ?? $headers['X-WP-MEMORY'][0] ?? 0;
-                            }
-                            $results = [
-                                'items' => $data,
-                                'total' => intval($total),
-                                'totalPage' => intval($totalPage),
-                                'queries' => $queries,
-                                'seconds' => $seconds,
-                                'memory' => $memory,
-                            ];
-                        } else {
-                            $results = $data;
-                        }
-                }
-                return $results;
-            } catch (RequestException $e) {
-                $di->logger->error($logBase . ' # RequestException');
-                if ($e->hasResponse()) {
-                    $di->logger->error($logBase, ['RequestException' => Psr7\Message::toString($e->getResponse())]);
-                }
-                return null;
-            } catch (ClientException $e) {
-                $di->logger->error($logBase . ' # ClientException');
-                if ($e->hasResponse()) {
-                    $di->logger->error($logBase, ['ClientException' => Psr7\Message::toString($e->getResponse())]);
-                }
-            } catch (ServerException $e) {
-                $di->logger->error($logBase . ' # ServerException');
-                if ($e->hasResponse()) {
-                    $di->logger->error($logBase, ['ServerException' => Psr7\Message::toString($e->getResponse())]);
-                }
-            } catch (Exception $e) {
-                $di->logger->error($logBase, ['Exception' => $e->getMessage()]);
+
+        try {
+            return match ($method) {
+                'post' => $this->handlePostRequest($wordpress, $route, $parameters),
+                'put' => $this->handlePutRequest($wordpress, $route, $parameters),
+                'delete' => $this->handleDeleteRequest($wordpress, $route, $parameters),
+                default => $this->handleGetRequest($wordpress, $route, $parameters, $returnArray),
+            };
+        } catch (RequestException $e) {
+            $di->logger->error($logBase . ' # RequestException');
+            if ($e->hasResponse()) {
+                $di->logger->error($logBase, ['RequestException' => Psr7\Message::toString($e->getResponse())]);
             }
-        } else {
+            return null;
+        } catch (ClientException $e) {
+            $di->logger->error($logBase . ' # ClientException');
+            if ($e->hasResponse()) {
+                $di->logger->error($logBase, ['ClientException' => Psr7\Message::toString($e->getResponse())]);
+            }
+            return null;
+        } catch (ServerException $e) {
+            $di->logger->error($logBase . ' # ServerException');
+            if ($e->hasResponse()) {
+                $di->logger->error($logBase, ['ServerException' => Psr7\Message::toString($e->getResponse())]);
+            }
+            return null;
+        } catch (Throwable $e) {
+            $di->logger->error($logBase, ['Exception' => $e->getMessage()]);
             return null;
         }
+    }
+
+    /**
+     * Handle POST request.
+     */
+    private function handlePostRequest(Client $wordpress, string $route, array $parameters): array|null
+    {
+        $results = $wordpress->post($route, $parameters);
+        $code = $results->getStatusCode();
+        if ($code >= 400) {
+            throw new BadRequestException('Error Code', $code);
+        }
+        return json_decode($results->getBody(), true);
+    }
+
+    /**
+     * Handle PUT request.
+     */
+    private function handlePutRequest(Client $wordpress, string $route, array $parameters): array|null
+    {
+        $results = $wordpress->put($route, $parameters);
+        $code = $results->getStatusCode();
+        if ($code >= 400) {
+            throw new BadRequestException('Error Code', $code);
+        }
+        return json_decode($results->getBody(), true);
+    }
+
+    /**
+     * Handle DELETE request.
+     */
+    private function handleDeleteRequest(Client $wordpress, string $route, array $parameters): array|null
+    {
+        $results = $wordpress->delete($route, $parameters);
+        $code = $results->getStatusCode();
+        if ($code >= 400) {
+            throw new BadRequestException('Error Code', $code);
+        }
+        return json_decode($results->getBody(), true);
+    }
+
+    /**
+     * Handle GET request.
+     */
+    private function handleGetRequest(
+        Client $wordpress,
+        string $route,
+        array $parameters,
+        bool $returnArray
+    ): array|null {
+        $rs = $wordpress->get($route, $parameters);
+        $code = $rs->getStatusCode();
+        if ($code >= 400) {
+            throw new BadRequestException('Error Code', $code);
+        }
+        $data = json_decode($rs->getBody(), true);
+
+        if ($returnArray) {
+            return $this->buildArrayResponse($rs, $data);
+        }
+
+        return $data;
+    }
+
+    /**
+     * Build array response with pagination info.
+     */
+    private function buildArrayResponse($rs, array|null $data): array
+    {
+        $headers = $rs->getHeaders();
+        $total = 0;
+        $totalPage = 0;
+        $queries = 0;
+        $seconds = 0;
+        $memory = 0;
+
+        if (is_array($headers) && !empty($headers)) {
+            $total = $this->getHeader($headers, 'X-WP-Total');
+            $totalPage = $this->getHeader($headers, 'X-WP-TotalPages');
+            $queries = $this->getHeader($headers, 'X-WP-Queries');
+            $seconds = $this->getHeader($headers, 'X-WP-Seconds');
+            $memory = $this->getHeader($headers, 'X-WP-Memory');
+        }
+
+        return [
+            'items' => $data,
+            'total' => (int) $total,
+            'totalPage' => (int) $totalPage,
+            'queries' => $queries,
+            'seconds' => $seconds,
+            'memory' => $memory,
+        ];
+    }
+
+    /**
+     * Get header value case-insensitively.
+     */
+    private function getHeader(array $headers, string $name): string|int
+    {
+        $variants = [
+            $name,
+            strtolower($name),
+            strtoupper($name),
+        ];
+
+        foreach ($variants as $variant) {
+            if (isset($headers[$variant][0])) {
+                return $headers[$variant][0];
+            }
+        }
+
+        return 0;
     }
 }

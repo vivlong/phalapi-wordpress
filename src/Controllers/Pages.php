@@ -1,18 +1,36 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhalApi\Wordpress\Controllers;
 
 use PhalApi\Wordpress\Base;
 
+/**
+ * WordPress Pages Controller.
+ */
 class Pages extends Base
 {
-    public function listPages($args = [])
+    /**
+     * List pages.
+     *
+     * @param array $args Query parameters
+     * @return array|null Pages list with pagination info
+     */
+    public function listPages(array $args = []): array|null
     {
         return $this->request('get', 'pages', $args, true);
     }
 
-    public function retrievePage($id, $args = [])
+    /**
+     * Retrieve a single page.
+     *
+     * @param int $id Page ID
+     * @param array $args Query parameters
+     * @return array|null Page data
+     */
+    public function retrievePage(int $id, array $args = []): array|null
     {
-        return $this->request('get', 'pages/'.$id, $args);
+        return $this->request('get', 'pages/' . $id, $args);
     }
 }

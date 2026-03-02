@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Wordpress REST API HTTP Client.
  */
@@ -6,146 +9,103 @@
 namespace PhalApi\Wordpress\HttpClient;
 
 use PhalApi\Wordpress\Client;
+use Throwable;
 
 /**
  * REST API HTTP Client class.
  */
 class HttpClient
 {
-    /**
-     * cURL handle.
-     *
-     * @var resource
-     */
-    protected $ch;
+    protected \CurlHandle|false $ch = false;
+    protected string $url = '';
+    protected string $apiKey = '';
+    protected string $apiSecret = '';
+    protected Options $options;
+    private Request $request;
+    private Response $response;
+    private string $responseHeaders = '';
+    private string $accessToken = '';
+    private string $basicAuth = '';
 
     /**
-     * Site API URL.
+     * Initialize HTTP client with JWT key pairs.
      *
-     * @var string
+     * @param string $url Site URL.
+     * @param string $authType Auth type.
+     * @param string $apiKey JWT api key.
+     * @param string $apiSecret JWT api Secret.
+     * @param string $authToken Authentication token.
+     * @param array $options Client options.
      */
-    protected $url;
+    public function __construct(
+        string $url,
+        string $authType,
+        string $apiKey = '',
+        string $apiSecret = '',
+        string $authToken = '',
+        array $options = []
+    ) {
+        if (!function_exists('curl_version')) {
+            throw new HttpClientException(
+                'cURL is NOT installed on this server',
+                -1,
+                new Request(),
+                new Response()
+            );
+        }
+
+        $this->options = new Options($options);
+        $this->url = $this->buildApiUrl($url);
+
+        $di = \PhalApi\DI();
+        if (!isset($di->cache)) {
+            $di->cache = new \PhalApi\Cache\FileCache([
+                'path' => API_ROOT . '/runtime',
+                'prefix' => 'wp'
+            ]);
+        }
+
+        $this->initializeAuthentication($authType, $authToken, $apiKey, $apiSecret, $di);
+    }
 
     /**
-     * JWT api key.
-     *
-     * @var string
+     * Initialize authentication based on type.
      */
-    protected $apiKey;
-
-    /**
-     * JWT api secret.
-     *
-     * @var string
-     */
-    protected $apiSecret;
-
-    /**
-     * Client options.
-     *
-     * @var Options
-     */
-    protected $options;
-
-    /**
-     * Request.
-     *
-     * @var Request
-     */
-    private $request;
-
-    /**
-     * Response.
-     *
-     * @var Response
-     */
-    private $response;
-
-    /**
-     * Response headers.
-     *
-     * @var string
-     */
-    private $responseHeaders;
-
-    /**
-     * Jwt Access Token.
-     *
-     * @var string
-     */
-    private $accessToken;
-
-    /**
-     * Basic Auth.
-     *
-     * @var string
-     */
-    private $basicAuth;
-
-    /**
-     * Initialize HTTP client.
-     */
-    public function __construct()
-    {
-        $a = func_get_args(); //获取构造函数中的参数
-        $i = count($a);
-        if (method_exists($this, $f = '__construct'.$i)) {
-            call_user_func_array([$this, $f], $a);
+    private function initializeAuthentication(
+        string $authType,
+        string $authToken,
+        string $apiKey,
+        string $apiSecret,
+        \PhalApi\DI $di
+    ): void {
+        if ($authType === 'basic' && !empty($authToken)) {
+            $this->basicAuth = $authToken;
+        } elseif ($authType === 'jwt' && !empty($authToken)) {
+            $this->accessToken = $authToken;
+        } elseif (!empty($apiKey) && !empty($apiSecret)) {
+            $this->apiKey = $apiKey;
+            $this->apiSecret = $apiSecret;
+            $this->initializeJwtToken($di);
         }
     }
 
     /**
-     * Initialize HTTP client.
-     *
-     * @param string $url       Site URL.
-     * @param string $apiKey    JWT api key.
-     * @param string $apiSecret JWT api Secret.
-     * @param array  $options   Client options.
+     * Initialize JWT token from cache or request new one.
      */
-    public function __construct5($url, $authType, $apiKey, $apiSecret, $options)
+    private function initializeJwtToken(\PhalApi\DI $di): void
     {
-        if (!\function_exists('curl_version')) {
-            throw new HttpClientException('cURL is NOT installed on this server', -1, new Request(), new Response());
-        }
-        $this->options = new Options($options);
-        $this->url = $this->buildApiUrl($url);
-        $this->apiKey = $apiKey;
-        $this->apiSecret = $apiSecret;
-        $di = \PhalApi\DI();
-        if(!isset($di->cache)) {
-            $di->cache = new \PhalApi\Cache\FileCache(['path' => API_ROOT.'/runtime', 'prefix' => 'wp']);
-        }
-        $jwt = $di->cache->get($apiKey);
+        $jwt = $di->cache->get($this->apiKey);
+
         if (!empty($jwt)) {
             $jwtAuth = json_decode($jwt);
             $this->accessToken = $jwtAuth->access_token;
         } else {
-            $jwtAuth = $this->request('token', 'POST', ['api_key' => $apiKey, 'api_secret' => $apiSecret]);
-            $di->cache->set($apiKey, json_encode($jwtAuth), $jwtAuth->exp);
+            $jwtAuth = $this->request('token', 'POST', [
+                'api_key' => $this->apiKey,
+                'api_secret' => $this->apiSecret,
+            ]);
+            $di->cache->set($this->apiKey, json_encode($jwtAuth), $jwtAuth->exp);
             $this->accessToken = $jwtAuth->access_token;
-        }
-    }
-
-    /**
-     * Initialize HTTP client.
-     *
-     * @param string $url       Site URL.
-     * @param string $authType  Auth Type.
-     * @param string $authToken Auth Token.
-     * @param array  $options   Client options.
-     */
-    public function __construct4($url, $authType, $authToken, $options)
-    {
-        if (!\function_exists('curl_version')) {
-            throw new HttpClientException('cURL is NOT installed on this server', -1, new Request(), new Response());
-        }
-        $this->options = new Options($options);
-        $this->url = $this->buildApiUrl($url);
-        $di = \PhalApi\DI();
-        if ('basic' === $authType && !empty($authToken)) {
-            $this->basicAuth = $authToken;
-        } elseif ('jwt' === $authType && !empty($authToken)) {
-            $this->accessToken = $authToken;
         }
     }
 
@@ -153,28 +113,26 @@ class HttpClient
      * Build API URL.
      *
      * @param string $url Store URL.
-     *
      * @return string
      */
-    protected function buildApiUrl($url)
+    protected function buildApiUrl(string $url): string
     {
         $api = $this->options->apiPrefix();
 
-        return \rtrim($url, '/').$api.$this->options->getVersion().'/';
+        return rtrim($url, '/') . $api . $this->options->getVersion() . '/';
     }
 
     /**
      * Build URL.
      *
-     * @param string $url        URL.
-     * @param array  $parameters Query string parameters.
-     *
+     * @param string $url URL.
+     * @param array $parameters Query string parameters.
      * @return string
      */
-    protected function buildUrlQuery($url, $parameters = [])
+    protected function buildUrlQuery(string $url, array $parameters = []): string
     {
         if (!empty($parameters)) {
-            $url .= '?'.\http_build_query($parameters);
+            $url .= '?' . http_build_query($parameters);
         }
 
         return $url;
@@ -185,12 +143,12 @@ class HttpClient
      *
      * @param string $method Request method.
      */
-    protected function setupMethod($method)
+    protected function setupMethod(string $method): void
     {
-        if ('POST' == $method) {
-            \curl_setopt($this->ch, CURLOPT_POST, true);
-        } elseif (\in_array($method, ['PUT', 'DELETE', 'OPTIONS'])) {
-            \curl_setopt($this->ch, CURLOPT_CUSTOMREQUEST, $method);
+        if ($method === 'POST') {
+            curl_setopt($this->ch, CURLOPT_POST, true);
+        } elseif (in_array($method, ['PUT', 'DELETE', 'OPTIONS'], true)) {
+            curl_setopt($this->ch, CURLOPT_CUSTOMREQUEST, $method);
         }
     }
 
@@ -198,29 +156,29 @@ class HttpClient
      * Get request headers.
      *
      * @param bool $sendData If request send data or not.
-     *
+     * @param array|null $formData Form data for multipart uploads.
      * @return array
      */
-    protected function getRequestHeaders($sendData = false, $formData = null)
+    protected function getRequestHeaders(bool $sendData = false, ?array $formData = null): array
     {
         $headers = [
             'Accept' => 'application/json',
-            'User-Agent' => $this->options->userAgent().'/'.Client::VERSION,
+            'User-Agent' => $this->options->userAgent() . '/' . Client::VERSION,
         ];
 
         if ($sendData) {
             if (!empty($formData)) {
-                $headers['Content-Type'] = 'multipart/form-data; boundary='.$formData['delimiter'];
+                $headers['Content-Type'] = 'multipart/form-data; boundary=' . $formData['delimiter'];
                 $headers['Content-Length'] = $formData['length'];
             } else {
                 $headers['Content-Type'] = 'application/json;charset=utf-8';
             }
         }
 
-        if (isset($this->accessToken) && !empty($this->accessToken)) {
-            $headers['Authorization'] = 'Bearer '.$this->accessToken;
-        } elseif (isset($this->basicAuth) && !empty($this->basicAuth)) {
-            $headers['Authorization'] = 'Basic '.$this->basicAuth;
+        if (!empty($this->accessToken)) {
+            $headers['Authorization'] = 'Bearer ' . $this->accessToken;
+        } elseif (!empty($this->basicAuth)) {
+            $headers['Authorization'] = 'Basic ' . $this->basicAuth;
         }
 
         return $headers;
@@ -229,17 +187,20 @@ class HttpClient
     /**
      * Create request.
      *
-     * @param string $endpoint   Request endpoint.
-     * @param string $method     Request method.
-     * @param array  $data       Request data.
-     * @param array  $parameters Request parameters.
-     *
+     * @param string $endpoint Request endpoint.
+     * @param string $method Request method.
+     * @param array $data Request data.
+     * @param array $parameters Request parameters.
      * @return Request
      */
-    protected function createRequest($endpoint, $method, $data = [], $parameters = [])
-    {
+    protected function createRequest(
+        string $endpoint,
+        string $method,
+        array $data = [],
+        array $parameters = []
+    ): Request {
         $body = '';
-        $url = $this->url.$endpoint;
+        $url = $this->url . $endpoint;
         $hasData = !empty($data);
 
         // Setup method.
@@ -248,26 +209,12 @@ class HttpClient
         $formData = null;
         // Include post fields.
         if ($hasData) {
-            if (!empty($data['file']) && !empty($data['file']['tmp_name'])) {
-                $delimiter = uniqid();
-                $fields = [
-                    'file' => file_get_contents($data['file']['tmp_name']),
-                    'filename' => $data['file']['name'],
-                ];
-                $streamData = '';
-                $streamData .= '--'.$delimiter."\r\n"
-                    .'Content-Disposition: form-data; name="file"; filename="'.$fields['filename'].'"'."\r\n"
-                    .'Content-Type:application/octet-stream'."\r\n\r\n";
-                $streamData .= $fields['file']."\r\n";
-                $streamData .= '--'.$delimiter."--\r\n";
-                $formData = [
-                    'delimiter' => $delimiter,
-                    'length' => strlen($streamData),
-                ];
-                curl_setopt($this->ch, CURLOPT_POSTFIELDS, $streamData);
+            if (!empty($data['file'], $data['file']['tmp_name'])) {
+                $formData = $this->buildMultipartFormData($data);
+                curl_setopt($this->ch, CURLOPT_POSTFIELDS, $formData['stream']);
             } else {
-                $body = \json_encode($data);
-                \curl_setopt($this->ch, CURLOPT_POSTFIELDS, $body);
+                $body = json_encode($data);
+                curl_setopt($this->ch, CURLOPT_POSTFIELDS, $body);
             }
         }
 
@@ -283,25 +230,51 @@ class HttpClient
     }
 
     /**
+     * Build multipart form data for file uploads.
+     */
+    private function buildMultipartFormData(array $data): array
+    {
+        $delimiter = uniqid();
+        $fields = [
+            'file' => file_get_contents($data['file']['tmp_name']),
+            'filename' => $data['file']['name'],
+        ];
+        $streamData = '';
+        $streamData .= '--' . $delimiter . "\r\n"
+            . 'Content-Disposition: form-data; name="file"; filename="' . $fields['filename'] . '"' . "\r\n"
+            . 'Content-Type:application/octet-stream' . "\r\n\r\n";
+        $streamData .= $fields['file'] . "\r\n";
+        $streamData .= '--' . $delimiter . "--\r\n";
+
+        return [
+            'delimiter' => $delimiter,
+            'length' => strlen($streamData),
+            'stream' => $streamData,
+        ];
+    }
+
+    /**
      * Get response headers.
      *
      * @return array
      */
-    protected function getResponseHeaders()
+    protected function getResponseHeaders(): array
     {
         $headers = [];
-        $lines = \explode("\n", $this->responseHeaders);
-        $lines = \array_filter($lines, 'trim');
+        $lines = explode("\n", $this->responseHeaders);
+        $lines = array_filter($lines, 'trim');
 
-        foreach ($lines as $index => $line) {
+        foreach ($lines as $line) {
             // Remove HTTP/xxx params.
             if (false === strpos($line, ': ')) {
                 continue;
             }
 
-            list($key, $value) = \explode(': ', $line);
+            [$key, $value] = explode(': ', $line, 2);
 
-            $headers[$key] = isset($headers[$key]) ? $headers[$key].', '.trim($value) : trim($value);
+            $headers[$key] = isset($headers[$key])
+                ? $headers[$key] . ', ' . trim($value)
+                : trim($value);
         }
 
         return $headers;
@@ -312,23 +285,27 @@ class HttpClient
      *
      * @return Response
      */
-    protected function createResponse()
+    protected function createResponse(): Response
     {
         // Set response headers.
         $this->responseHeaders = '';
-        \curl_setopt($this->ch, CURLOPT_HEADERFUNCTION, function ($_, $headers) {
+        curl_setopt($this->ch, CURLOPT_HEADERFUNCTION, function ($_, $headers): int {
             $this->responseHeaders .= $headers;
 
-            return \strlen($headers);
+            return strlen($headers);
         });
 
         // Get response data.
-        $body = \curl_exec($this->ch);
-        $code = \curl_getinfo($this->ch, CURLINFO_HTTP_CODE);
+        $body = curl_exec($this->ch);
+        $code = curl_getinfo($this->ch, CURLINFO_HTTP_CODE);
         $headers = $this->getResponseHeaders();
 
         // Register response.
-        $this->response = new Response($code, $headers, $body);
+        $this->response = new Response(
+            (int) $code,
+            $headers,
+            $body !== false ? $body : ''
+        );
 
         return $this->getResponse();
     }
@@ -336,36 +313,36 @@ class HttpClient
     /**
      * Set default cURL settings.
      */
-    protected function setDefaultCurlSettings()
+    protected function setDefaultCurlSettings(): void
     {
         $verifySsl = $this->options->verifySsl();
         $timeout = $this->options->getTimeout();
         $followRedirects = $this->options->getFollowRedirects();
 
-        \curl_setopt($this->ch, CURLOPT_SSL_VERIFYPEER, $verifySsl);
+        curl_setopt($this->ch, CURLOPT_SSL_VERIFYPEER, $verifySsl);
         if (!$verifySsl) {
-            \curl_setopt($this->ch, CURLOPT_SSL_VERIFYHOST, $verifySsl);
+            curl_setopt($this->ch, CURLOPT_SSL_VERIFYHOST, $verifySsl);
         }
         if ($followRedirects) {
-            \curl_setopt($this->ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($this->ch, CURLOPT_FOLLOWLOCATION, true);
         }
-        \curl_setopt($this->ch, CURLOPT_CONNECTTIMEOUT, $timeout);
-        \curl_setopt($this->ch, CURLOPT_TIMEOUT, $timeout);
-        \curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($this->ch, CURLOPT_HTTPHEADER, $this->request->getRawHeaders());
-        \curl_setopt($this->ch, CURLOPT_URL, $this->request->getUrl());
+        curl_setopt($this->ch, CURLOPT_CONNECTTIMEOUT, $timeout);
+        curl_setopt($this->ch, CURLOPT_TIMEOUT, $timeout);
+        curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($this->ch, CURLOPT_HTTPHEADER, $this->request->getRawHeaders());
+        curl_setopt($this->ch, CURLOPT_URL, $this->request->getUrl());
     }
 
     /**
      * Look for errors in the request.
      *
-     * @param array $parsedResponse Parsed body response.
+     * @param object|array $parsedResponse Parsed body response.
      */
-    protected function lookForErrors($parsedResponse)
+    protected function lookForErrors(object|array $parsedResponse): void
     {
         // Any non-200/201/202 response code indicates an error.
-        if (!\in_array($this->response->getCode(), ['200', '201', '202'])) {
-            $errors = isset($parsedResponse->errors) ? $parsedResponse->errors : $parsedResponse;
+        if (!in_array($this->response->getCode(), [200, 201, 202], true)) {
+            $errors = $parsedResponse->errors ?? $parsedResponse;
             $errorMessage = '';
             $errorCode = '';
 
@@ -377,16 +354,21 @@ class HttpClient
                 $errorCode = $errors->code;
             }
 
-            throw new HttpClientException(\sprintf('Error: %s [%s]', $errorMessage, $errorCode), $this->response->getCode(), $this->request, $this->response);
+            throw new HttpClientException(
+                sprintf('Error: %s [%s]', $errorMessage, $errorCode),
+                $this->response->getCode(),
+                $this->request,
+                $this->response
+            );
         }
     }
 
     /**
      * Process response.
      *
-     * @return array
+     * @return object|array
      */
-    protected function processResponse()
+    protected function processResponse(): object|array
     {
         $body = $this->response->getBody();
 
@@ -395,12 +377,17 @@ class HttpClient
             $body = substr($body, 3);
         }
 
-        $parsedResponse = \json_decode($body);
+        $parsedResponse = json_decode($body);
 
         // Test if return a valid JSON.
         if (JSON_ERROR_NONE !== json_last_error()) {
-            $message = function_exists('json_last_error_msg') ? json_last_error_msg() : 'Invalid JSON returned';
-            throw new HttpClientException(sprintf('JSON ERROR: %s', $message), $this->response->getCode(), $this->request, $this->response);
+            $message = json_last_error_msg();
+            throw new HttpClientException(
+                sprintf('JSON ERROR: %s', $message),
+                $this->response->getCode(),
+                $this->request,
+                $this->response
+            );
         }
 
         $this->lookForErrors($parsedResponse);
@@ -411,17 +398,20 @@ class HttpClient
     /**
      * Make requests.
      *
-     * @param string $endpoint   Request endpoint.
-     * @param string $method     Request method.
-     * @param array  $data       Request data.
-     * @param array  $parameters Request parameters.
-     *
-     * @return array
+     * @param string $endpoint Request endpoint.
+     * @param string $method Request method.
+     * @param array $data Request data.
+     * @param array $parameters Request parameters.
+     * @return object|array
      */
-    public function request($endpoint, $method, $data = [], $parameters = [])
-    {
+    public function request(
+        string $endpoint,
+        string $method,
+        array $data = [],
+        array $parameters = []
+    ): object|array {
         // Initialize cURL.
-        $this->ch = \curl_init();
+        $this->ch = curl_init();
 
         // Set request args.
         $request = $this->createRequest($endpoint, $method, $data, $parameters);
@@ -433,11 +423,16 @@ class HttpClient
         $response = $this->createResponse();
 
         // Check for cURL errors.
-        if (\curl_errno($this->ch)) {
-            throw new HttpClientException('cURL Error: '.\curl_error($this->ch), 0, $request, $response);
+        if (curl_errno($this->ch)) {
+            throw new HttpClientException(
+                'cURL Error: ' . curl_error($this->ch),
+                0,
+                $request,
+                $response
+            );
         }
 
-        \curl_close($this->ch);
+        curl_close($this->ch);
 
         return $this->processResponse();
     }
@@ -447,7 +442,7 @@ class HttpClient
      *
      * @return Request
      */
-    public function getRequest()
+    public function getRequest(): Request
     {
         return $this->request;
     }
@@ -457,7 +452,7 @@ class HttpClient
      *
      * @return Response
      */
-    public function getResponse()
+    public function getResponse(): Response
     {
         return $this->response;
     }

@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Wordpress REST API HTTP Client Response.
  */
@@ -11,38 +14,17 @@ namespace PhalApi\Wordpress\HttpClient;
 class Response
 {
     /**
-     * Response code.
-     *
-     * @var int
-     */
-    private $code;
-
-    /**
-     * Response headers.
-     *
-     * @var array
-     */
-    private $headers;
-
-    /**
-     * Response body.
-     *
-     * @var string
-     */
-    private $body;
-
-    /**
      * Initialize response.
      *
-     * @param int    $code    Response code.
-     * @param array  $headers Response headers.
-     * @param string $body    Response body.
+     * @param int $code Response code.
+     * @param array $headers Response headers.
+     * @param string $body Response body.
      */
-    public function __construct($code = 0, $headers = [], $body = '')
-    {
-        $this->code = $code;
-        $this->headers = $headers;
-        $this->body = $body;
+    public function __construct(
+        private int $code = 0,
+        private array $headers = [],
+        private string $body = ''
+    ) {
     }
 
     /**
@@ -50,9 +32,9 @@ class Response
      *
      * @param int $code Response code.
      */
-    public function setCode($code)
+    public function setCode(int $code): void
     {
-        $this->code = (int) $code;
+        $this->code = $code;
     }
 
     /**
@@ -60,7 +42,7 @@ class Response
      *
      * @param array $headers Response headers.
      */
-    public function setHeaders($headers)
+    public function setHeaders(array $headers): void
     {
         $this->headers = $headers;
     }
@@ -70,7 +52,7 @@ class Response
      *
      * @param string $body Response body.
      */
-    public function setBody($body)
+    public function setBody(string $body): void
     {
         $this->body = $body;
     }
@@ -80,7 +62,7 @@ class Response
      *
      * @return int
      */
-    public function getCode()
+    public function getCode(): int
     {
         return $this->code;
     }
@@ -88,9 +70,9 @@ class Response
     /**
      * Get headers.
      *
-     * @return array $headers Response headers.
+     * @return array Response headers.
      */
-    public function getHeaders()
+    public function getHeaders(): array
     {
         return $this->headers;
     }
@@ -98,9 +80,9 @@ class Response
     /**
      * Get body.
      *
-     * @return string $body Response body.
+     * @return string Response body.
      */
-    public function getBody()
+    public function getBody(): string
     {
         return $this->body;
     }

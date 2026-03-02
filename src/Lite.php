@@ -1,83 +1,108 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhalApi\Wordpress;
 
-// use PhalApi\Wordpress\HttpClient\HttpClientException;
 use Exception;
+use Throwable;
 
 /**
  * Wordpress操作类.
  */
 class Lite
 {
-    protected $config;
-    protected $instance;
-    protected $controllers = [];
-
-    public function __construct($config = null)
-    {
+    public function __construct(
+        protected array|null $config = null,
+        protected Client|null $instance = null,
+        protected array $controllers = []
+    ) {
         $di = \PhalApi\DI();
-        $this->config = $config;
-        if (null == $this->config) {
-            $this->config = $di->config->get('app.Wordpress');
-        }
+        $this->config = $config ?? $di->config->get('app.Wordpress');
+
         try {
-            $authType = strtolower($this->config['auth']);
-            $basicAuth = null;
-            $jwtToken = null;
-            $jwtKeyPairs = null;
-            if ('basic' === $authType && !empty($this->config['basic_user']) && !empty($this->config['basic_pwd'])) {
-                $basicAuth = base64_encode($this->config['basic_user'].':'.$this->config['basic_pwd']);
-            } elseif ('jwt' === $authType && !empty($this->config['jwt_token'])) {
-                $jwtToken = $this->config['jwt_token'];
-            } else {
-                $jwtKeyPairs = [
-                    'apiKey' => $this->config['api_key'],
-                    'apiSecret' => $this->config['api_secret'],
-                ];
-            }
-            $wordpress = new Client(
-                $this->config['url'],
-                $authType,
-                $this->config['options'],
-                $basicAuth,
-                $jwtToken,
-                $jwtKeyPairs
-            );
-            $this->instance = $wordpress;
-        } catch (Exception $e) {
-            $di->logger->error(__CLASS__.DIRECTORY_SEPARATOR.__FUNCTION__, ['Exception' => $e->getMessage()]);
+            $this->instance = $this->createClient();
+        } catch (Throwable $e) {
+            $di->logger->error(__CLASS__ . DIRECTORY_SEPARATOR . __FUNCTION__, ['Exception' => $e->getMessage()]);
+            $this->instance = null;
         }
-        foreach ($this->get_controllers() as $namespace => $controller_name) {
-            $controller_class = __NAMESPACE__.'\\Controllers\\'.$controller_name;
-            $this->controllers[$namespace] = new $controller_class($this->instance);
+
+        $this->initializeControllers();
+    }
+
+    /**
+     * Create WordPress client instance.
+     */
+    private function createClient(): Client
+    {
+        $authType = strtolower($this->config['auth']);
+        $basicAuth = null;
+        $jwtToken = null;
+        $jwtKeyPairs = null;
+
+        if ($authType === 'basic' && !empty($this->config['basic_user'], $this->config['basic_pwd'])) {
+            $basicAuth = base64_encode($this->config['basic_user'] . ':' . $this->config['basic_pwd']);
+        } elseif ($authType === 'jwt' && !empty($this->config['jwt_token'])) {
+            $jwtToken = $this->config['jwt_token'];
+        } else {
+            $jwtKeyPairs = [
+                'apiKey' => $this->config['api_key'],
+                'apiSecret' => $this->config['api_secret'],
+            ];
+        }
+
+        return new Client(
+            $this->config['url'],
+            $authType,
+            $this->config['options'] ?? [],
+            $basicAuth,
+            $jwtToken,
+            $jwtKeyPairs
+        );
+    }
+
+    /**
+     * Initialize all controllers.
+     */
+    private function initializeControllers(): void
+    {
+        foreach ($this->getControllers() as $namespace => $controllerName) {
+            $controllerClass = __NAMESPACE__ . '\\Controllers\\' . $controllerName;
+            $this->controllers[$namespace] = new $controllerClass($this->instance);
         }
     }
 
-    public function getConfig()
+    public function getConfig(): array|null
     {
         return $this->config;
     }
 
-    public function getInstance()
+    public function getInstance(): Client|null
     {
         return $this->instance;
     }
 
-    public function __call($method, $arguments)
+    public function __call(string $method, array $arguments): mixed
     {
         if (method_exists($this, $method)) {
-            return call_user_func_array([&$this, $method], $arguments);
-        } elseif (!empty($this->instance) && $this->instance) {
+            return $this->$method(...$arguments);
+        }
+
+        if ($this->instance !== null) {
             foreach ($this->controllers as $controller) {
                 if (method_exists($controller, $method)) {
-                    return call_user_func_array([&$controller, $method], $arguments);
+                    return $controller->$method(...$arguments);
                 }
             }
         }
+
+        return null;
     }
 
-    protected function get_controllers()
+    /**
+     * Get available controllers.
+     */
+    protected function getControllers(): array
     {
         return [
             'categories' => 'Categories',

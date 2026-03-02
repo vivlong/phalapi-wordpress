@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Wordpress REST API HTTP Client Request.
  */
@@ -11,56 +14,21 @@ namespace PhalApi\Wordpress\HttpClient;
 class Request
 {
     /**
-     * Request url.
-     *
-     * @var string
-     */
-    private $url;
-
-    /**
-     * Request method.
-     *
-     * @var string
-     */
-    private $method;
-
-    /**
-     * Request paramenters.
-     *
-     * @var array
-     */
-    private $parameters;
-
-    /**
-     * Request headers.
-     *
-     * @var array
-     */
-    private $headers;
-
-    /**
-     * Request body.
-     *
-     * @var string
-     */
-    private $body;
-
-    /**
      * Initialize request.
      *
-     * @param string $url        Request url.
-     * @param string $method     Request method.
-     * @param array  $parameters Request paramenters.
-     * @param array  $headers    Request headers.
-     * @param string $body       Request body.
+     * @param string $url Request url.
+     * @param string $method Request method.
+     * @param array $parameters Request paramenters.
+     * @param array $headers Request headers.
+     * @param string $body Request body.
      */
-    public function __construct($url = '', $method = 'POST', $parameters = [], $headers = [], $body = '')
-    {
-        $this->url = $url;
-        $this->method = $method;
-        $this->parameters = $parameters;
-        $this->headers = $headers;
-        $this->body = $body;
+    public function __construct(
+        private string $url = '',
+        private string $method = 'POST',
+        private array $parameters = [],
+        private array $headers = [],
+        private string $body = ''
+    ) {
     }
 
     /**
@@ -68,7 +36,7 @@ class Request
      *
      * @param string $url Request url.
      */
-    public function setUrl($url)
+    public function setUrl(string $url): void
     {
         $this->url = $url;
     }
@@ -78,7 +46,7 @@ class Request
      *
      * @param string $method Request method.
      */
-    public function setMethod($method)
+    public function setMethod(string $method): void
     {
         $this->method = $method;
     }
@@ -88,7 +56,7 @@ class Request
      *
      * @param array $parameters Request paramenters.
      */
-    public function setParameters($parameters)
+    public function setParameters(array $parameters): void
     {
         $this->parameters = $parameters;
     }
@@ -98,7 +66,7 @@ class Request
      *
      * @param array $headers Request headers.
      */
-    public function setHeaders($headers)
+    public function setHeaders(array $headers): void
     {
         $this->headers = $headers;
     }
@@ -108,7 +76,7 @@ class Request
      *
      * @param string $body Request body.
      */
-    public function setBody($body)
+    public function setBody(string $body): void
     {
         $this->body = $body;
     }
@@ -118,7 +86,7 @@ class Request
      *
      * @return string
      */
-    public function getUrl()
+    public function getUrl(): string
     {
         return $this->url;
     }
@@ -128,7 +96,7 @@ class Request
      *
      * @return string
      */
-    public function getMethod()
+    public function getMethod(): string
     {
         return $this->method;
     }
@@ -138,7 +106,7 @@ class Request
      *
      * @return array
      */
-    public function getParameters()
+    public function getParameters(): array
     {
         return $this->parameters;
     }
@@ -148,7 +116,7 @@ class Request
      *
      * @return array
      */
-    public function getHeaders()
+    public function getHeaders(): array
     {
         return $this->headers;
     }
@@ -158,12 +126,12 @@ class Request
      *
      * @return array
      */
-    public function getRawHeaders()
+    public function getRawHeaders(): array
     {
         $headers = [];
 
         foreach ($this->headers as $key => $value) {
-            $headers[] = $key.': '.$value;
+            $headers[] = $key . ': ' . $value;
         }
 
         return $headers;
@@ -174,7 +142,7 @@ class Request
      *
      * @return string
      */
-    public function getBody()
+    public function getBody(): string
     {
         return $this->body;
     }
