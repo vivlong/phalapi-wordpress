@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace PhalApi\Wordpress;
 
-use Exception;
 use Throwable;
 
 /**
@@ -35,16 +34,16 @@ class Lite
      */
     private function createClient(): Client
     {
-        $authType = strtolower($this->config['auth']);
+        $authType = strtolower($this->config['auth'] ?? 'jwt');
         $basicAuth = null;
         $jwtToken = null;
         $jwtKeyPairs = null;
 
-        if ($authType === 'basic' && !empty($this->config['basic_user'], $this->config['basic_pwd'])) {
+        if ($authType === 'basic' && !empty($this->config['basic_user']) && !empty($this->config['basic_pwd'])) {
             $basicAuth = base64_encode($this->config['basic_user'] . ':' . $this->config['basic_pwd']);
         } elseif ($authType === 'jwt' && !empty($this->config['jwt_token'])) {
             $jwtToken = $this->config['jwt_token'];
-        } else {
+        } elseif (!empty($this->config['api_key']) && !empty($this->config['api_secret'])) {
             $jwtKeyPairs = [
                 'apiKey' => $this->config['api_key'],
                 'apiSecret' => $this->config['api_secret'],

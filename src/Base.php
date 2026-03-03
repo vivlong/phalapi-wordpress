@@ -9,6 +9,7 @@ use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
 use PhalApi\Exception\BadRequestException;
+use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
 abstract class Base
@@ -44,12 +45,6 @@ abstract class Base
                 'delete' => $this->handleDeleteRequest($wordpress, $route, $parameters),
                 default => $this->handleGetRequest($wordpress, $route, $parameters, $returnArray),
             };
-        } catch (RequestException $e) {
-            $di->logger->error($logBase . ' # RequestException');
-            if ($e->hasResponse()) {
-                $di->logger->error($logBase, ['RequestException' => Psr7\Message::toString($e->getResponse())]);
-            }
-            return null;
         } catch (ClientException $e) {
             $di->logger->error($logBase . ' # ClientException');
             if ($e->hasResponse()) {
@@ -60,6 +55,12 @@ abstract class Base
             $di->logger->error($logBase . ' # ServerException');
             if ($e->hasResponse()) {
                 $di->logger->error($logBase, ['ServerException' => Psr7\Message::toString($e->getResponse())]);
+            }
+            return null;
+        } catch (RequestException $e) {
+            $di->logger->error($logBase . ' # RequestException');
+            if ($e->hasResponse()) {
+                $di->logger->error($logBase, ['RequestException' => Psr7\Message::toString($e->getResponse())]);
             }
             return null;
         } catch (Throwable $e) {
@@ -78,7 +79,7 @@ abstract class Base
         if ($code >= 400) {
             throw new BadRequestException('Error Code', $code);
         }
-        return json_decode($results->getBody(), true);
+        return json_decode($results->getBody()->getContents(), true);
     }
 
     /**
@@ -91,7 +92,7 @@ abstract class Base
         if ($code >= 400) {
             throw new BadRequestException('Error Code', $code);
         }
-        return json_decode($results->getBody(), true);
+        return json_decode($results->getBody()->getContents(), true);
     }
 
     /**
@@ -104,7 +105,7 @@ abstract class Base
         if ($code >= 400) {
             throw new BadRequestException('Error Code', $code);
         }
-        return json_decode($results->getBody(), true);
+        return json_decode($results->getBody()->getContents(), true);
     }
 
     /**
@@ -121,7 +122,7 @@ abstract class Base
         if ($code >= 400) {
             throw new BadRequestException('Error Code', $code);
         }
-        $data = json_decode($rs->getBody(), true);
+        $data = json_decode($rs->getBody()->getContents(), true);
 
         if ($returnArray) {
             return $this->buildArrayResponse($rs, $data);
@@ -133,7 +134,7 @@ abstract class Base
     /**
      * Build array response with pagination info.
      */
-    private function buildArrayResponse($rs, array|null $data): array
+    private function buildArrayResponse(ResponseInterface $rs, array|null $data): array
     {
         $headers = $rs->getHeaders();
         $total = 0;

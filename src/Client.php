@@ -10,7 +10,6 @@ namespace PhalApi\Wordpress;
 
 use GuzzleHttp\Psr7;
 use Psr\Http\Message\ResponseInterface;
-use Throwable;
 
 /**
  * REST API Client class.
@@ -21,6 +20,11 @@ class Client
      * Wordpress REST API Client version.
      */
     public const VERSION = 'wp/v2';
+
+    /**
+     * @var \GuzzleHttp\Client HTTP client instance
+     */
+    protected \GuzzleHttp\Client $http;
 
     /**
      * Default WP API prefix.
@@ -102,7 +106,7 @@ class Client
                 'api_secret' => $jwtKeyPairs['apiSecret'],
             ]);
             $di->logger->info('WordPress # getWordpress', ['tokenRequest' => $tokenRequest]);
-            $jwtAuth = $tokenRequest->getBody();
+            $jwtAuth = json_decode($tokenRequest->getBody()->getContents());
             $di->cache->set($jwtKeyPairs['apiKey'], json_encode($jwtAuth), $jwtAuth->exp);
             $jwtToken = $jwtAuth->access_token;
         }
