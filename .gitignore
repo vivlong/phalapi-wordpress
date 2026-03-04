@@ -1,1 +1,32 @@
 /vendor/
+/composer.lock
+
+/.php-cs-fixer.cache
+/.php-cs-fixer.php.cache
+
+# IDE and Editor
+.idea/
+.vscode/*
+!.vscode/settings.json
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Temporary files
+/tmp/
+/cache/
+/runtime/
