@@ -60,7 +60,9 @@ class Client
         $config = $this->buildConfig($basicAuth, $jwtToken);
 
         if ($jwtKeyPairs !== null) {
-            $this->http = new \GuzzleHttp\Client(array_merge($config, ['verify' => false]));
+            // Use the verify option from $this->options if available, otherwise default to false
+            $verify = $this->options['verify'] ?? false;
+            $this->http = new \GuzzleHttp\Client(array_merge($config, ['verify' => $verify]));
             $this->handleJwtKeyPairs($jwtKeyPairs, $di);
         } else {
             $this->http = new \GuzzleHttp\Client($config);
@@ -98,27 +100,48 @@ class Client
         $jwt = $di->cache->get($jwtKeyPairs['apiKey']);
 
         if (!empty($jwt)) {
-            $jwtAuth = json_decode($jwt);
-            $jwtToken = $jwtAuth->access_token;
-        } else {
+            $jwtAuth = json_decode($jwt, true);
+            if (json_last_error() !== JSON_ERROR_NONE || !isset($jwtAuth['access_token'])) {
+                // 如果缓存的数据有问题，删除它并重新获取
+                $di->cache->delete($jwtKeyPairs['apiKey']);
+                $jwtAuth = null;
+            }
+        }
+
+        if (empty($jwtAuth) || !isset($jwtAuth['access_token'])) {
             $tokenRequest = $this->post('token', [
                 'api_key' => $jwtKeyPairs['apiKey'],
                 'api_secret' => $jwtKeyPairs['apiSecret'],
             ]);
             $di->logger->info('WordPress # getWordpress', ['tokenRequest' => $tokenRequest]);
-            $jwtAuth = json_decode($tokenRequest->getBody()->getContents());
-            $di->cache->set($jwtKeyPairs['apiKey'], json_encode($jwtAuth), $jwtAuth->exp);
-            $jwtToken = $jwtAuth->access_token;
+            $jwtAuth = json_decode($tokenRequest->getBody()->getContents(), true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($jwtAuth['access_token'], $jwtAuth['exp'])) {
+                $di->cache->set($jwtKeyPairs['apiKey'], json_encode($jwtAuth), $jwtAuth['exp']);
+            } else {
+                throw new \Exception("Failed to retrieve JWT token or invalid token response");
+            }
         }
 
+        $jwtToken = $jwtAuth['access_token'];
+
         // Update HTTP client with JWT token
-        $this->http = new \GuzzleHttp\Client([
-            'base_uri' => $this->url,
-            'headers' => [
-                'Authorization' => 'Bearer ' . $jwtToken,
-            ],
-            'verify' => false,
+        $headers = array_merge($this->options['headers'] ?? [], [
+            'Authorization' => 'Bearer ' . $jwtToken,
         ]);
+
+        $clientOptions = [
+            'base_uri' => $this->url,
+            'headers' => $headers,
+        ];
+
+        // Only override verify if specifically set in options
+        if (isset($this->options['verify'])) {
+            $clientOptions['verify'] = $this->options['verify'];
+        } else {
+            $clientOptions['verify'] = false;
+        }
+
+        $this->http = new \GuzzleHttp\Client($clientOptions);
     }
 
     /**
@@ -130,7 +153,8 @@ class Client
      */
     public function post(string $endpoint, array $data): ResponseInterface
     {
-        if (isset($data['file'], $data['file']['tmp_name'])) {
+        // Check if this is a file upload request
+        if (isset($data['file'], $data['file']['tmp_name']) && file_exists($data['file']['tmp_name'])) {
             return $this->http->request('POST', $endpoint, [
                 'multipart' => $this->buildMultipartData($data),
             ]);
@@ -197,7 +221,12 @@ class Client
      */
     public function delete(string $endpoint, array $parameters = []): ResponseInterface
     {
-        return $this->http->request('DELETE', $endpoint, ['form_params' => $parameters]);
+        // For DELETE requests, some APIs expect parameters in query string
+        if (!empty($parameters)) {
+            return $this->http->request('DELETE', $endpoint, ['form_params' => $parameters]);
+        }
+        
+        return $this->http->request('DELETE', $endpoint);
     }
 
     /**

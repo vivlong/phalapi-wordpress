@@ -166,18 +166,43 @@ abstract class Base
      */
     private function getHeader(array $headers, string $name): string|int
     {
+        // WordPress通常使用驼峰命名法，如 "X-Wp-Total"，我们需要匹配这些格式
         $variants = [
-            $name,
-            strtolower($name),
-            strtoupper($name),
+            $name,                                    // original: X-WP-Total
+            strtolower($name),                        // lowercase: x-wp-total
+            strtoupper($name),                        // uppercase: X-WP-TOTAL
+            $this->convertToCamelCase($name),         // camelcase: X-Wp-Total
         ];
 
         foreach ($variants as $variant) {
-            if (isset($headers[$variant][0])) {
-                return $headers[$variant][0];
+            // Headers keys can be case-insensitive, normalize them
+            foreach ($headers as $headerName => $headerValue) {
+                if (strtolower($headerName) === strtolower($variant) && isset($headerValue[0])) {
+                    return $headerValue[0];
+                }
             }
         }
 
         return 0;
+    }
+
+    /**
+     * Convert header name to WordPress camelCase format.
+     * Example: X-WP-Total -> X-Wp-Total
+     */
+    private function convertToCamelCase(string $name): string
+    {
+        $parts = explode('-', $name);
+        $result = [];
+        
+        foreach ($parts as $index => $part) {
+            if ($index === 0) {
+                $result[] = $part;  // First part stays as is
+            } else {
+                $result[] = ucfirst(strtolower($part));  // Subsequent parts are ucfirst'd
+            }
+        }
+        
+        return implode('-', $result);
     }
 }
